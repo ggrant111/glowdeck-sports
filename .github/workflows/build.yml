@@ -1,0 +1,23 @@
+name: Build and test GameDay firmware
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  platformio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Run portable tests
+        run: pio test -e native
+      - name: Compile CYD firmware
+        run: pio run -e cyd
+      - name: Upload flashable image
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlowDeck-GameDay-v0.1-firmware
+          path: .pio/build/cyd/firmware.bin
