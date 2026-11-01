@@ -1,0 +1,234 @@
+# GlowDeck GameDay — Living Project Plan
+
+> **Canonical roadmap and progress tracker**  
+> **Project:** GlowDeck GameDay · **Hardware:** ESP32-2432S028R ("Cheap Yellow Display" / CYD, 2.8-inch resistive touchscreen)  
+> **Repository:** https://github.com/ggrant111/glowdeck-sports  
+> **Owner:** Geoff · **Created:** 2026-11-01 · **Last reviewed:** 2026-11-01  
+> **Current phase:** Sprint 1 / v0.1 — firmware source prepared; build and physical acceptance outstanding.
+
+## 0. How to keep this plan current
+
+This file is the **source of truth** for milestones and acceptance criteria. Update it whenever a feature, test, risk, decision, or target changes.
+
+- Use `[x]` for **verified complete**, `[ ]` for **not verified/not complete**, and **In progress / Blocked / Planned** for milestone status.
+- Never mark firmware **Build passed** merely because code exists. Link a successful GitHub Actions run or attach a local build log.
+- For each sprint, update its checklist, **Evidence / test notes**, **Open blockers**, and **Next milestone**.
+- Add an entry to `docs/PROGRESS_LOG.md` for substantive changes. Keep `docs/VALIDATION.md` for test evidence and unresolved hardware issues.
+- Save firmware changes and plan changes together where practical. Suggested commit prefix: `sprint-N:`, `fix:`, `docs:`, `test:`.
+- A proposed future behavior is **not** an implemented feature merely because it appears in this plan.
+
+## 1. Vision and boundaries
+
+A standalone, touch-controlled GameDay console that reads live sports scores and game events and controls one or more local WLED devices in team colors and event-specific light scenes — **no always-on computer or server**. Start with NHL and extend to other leagues via interchangeable sports-data adapters.
+
+**User journey:** power on CYD → connect Wi-Fi → discover/select WLED devices or zones → choose league / team / game → show live scoreboard → optionally arm safe, delayed light reactions for scoring and important plays → restore the lights when reactions end.
+
+### MVP capabilities (target v1.0)
+
+- [ ] Reliable touchscreen interface: scoreboard, game detail, selected team/game, light settings, setup/status.
+- [ ] First-time Wi-Fi onboarding with recovery path; Wi-Fi reconnection.
+- [ ] NHL schedule and live score updates with clear errors/staleness indicators.
+- [ ] Discover or manually pair multiple WLED devices and select targets.
+- [ ] Team colors and safe, configurable goal/event light actions.
+- [ ] Prevent duplicate triggers or triggering on initial sync/score corrections.
+- [ ] Configurable **TV/game stream delay from 0 to 90 seconds**.
+- [ ] Save and restore prior WLED state on scene completion and on recovery.
+- [ ] Brightness cap, effect throttling, no high-frequency flashes, manual disable/override.
+- [ ] Hardware-validated release with repeatable simulation tests and documented install/update procedure.
+
+**Out of scope for initial v0.1 source:** unattended goal reactions, power-play and final effects, multi-controller zones, OTA, third-party leagues, external music streaming, FFT/audio-reactive playback. These are future features.
+
+## 2. Baseline snapshot — November 1, 2026
+
+### Implemented in the v0.1 Sprint 1 source package
+
+- [x] PlatformIO project scaffold for ESP32-2432S028R (ILI9341 + XPT2046 touch).
+- [x] 320×240 landscape touchscreen UI code with score, light and setup screens.
+- [x] Wi-Fi captive-portal onboarding and local web setup for direct-IP WLED pairing.
+- [x] NHL daily score polling adapter (60-second interval in v0.1).
+- [x] WLED `_wled._tcp` discovery, basic status/validation and manual team-color commands for segment 0.
+- [x] Portable game-state and score-change logic isolated from ESP32 hardware.
+- [x] Deterministic desktop simulator and seven PlatformIO Unity test cases authored.
+- [x] GitHub Actions firmware/test workflow authored.
+- [x] Build, touch-calibration, WLED safety and acceptance documentation authored.
+- [x] Desktop C++ simulator **executed successfully**: two display-only goal alerts; **zero** automatic WLED calls.
+
+### Still pending verification
+
+- [ ] GitHub Actions / PlatformIO native Unity tests pass.
+- [ ] ESP32 `pio run -e cyd` firmware build passes.
+- [ ] Upload and boot on an actual ESP32-2432S028R.
+- [ ] Screen orientation, resistive touch corners and calibration confirmed.
+- [ ] Wi-Fi onboarding, reconnect and persisted settings confirmed on hardware.
+- [ ] Live NHL HTTPS/JSON requests confirmed on the ESP32.
+- [ ] WLED mDNS scan and/or direct IP discovery confirmed on a real LAN.
+- [ ] Manual HOME/AWAY commands change intended WLED segment and only that segment.
+- [ ] WLED settings persist after restart and **no automatic LED commands** occur on score updates.
+
+**Important:** The simulator validates only portable game logic; it does not prove firmware compilation, display pins, API connectivity, network discovery or LED behavior. NHL prototype TLS uses `setInsecure()`; this is a release blocker.
+
+## 3. Original seven-week roadmap, translated to tracked milestones
+
+The **week numbers are sequence targets, not calendar commitments**; advance only after the relevant test gate passes.
+
+| Week | Milestone / version | Planned deliverable | Test gate | Status |
+|---|---|---|---|---|
+| 1 | **Sprint 1 — v0.1 Foundation** | Touch UI, Wi-Fi, NHL scoreboard, WLED discovery/manual colors, portable simulator and CI | Firmware build, board smoke, one WLED device, no auto triggers | **In progress** (source prepared; hardware + CI pending) |
+| 2 | **Sprint 2 — v0.2 Goal engine** | Selected-game tracking, favorite/opponent goals, event dedupe, arm/disarm, 0–90s delay, state snapshot/restore | Simulated repeated and corrected goals; WLED restore tests | Planned |
+| 3 | **Sprint 3 — v0.3 NHL events** | Goal celebrations, power plays, intermissions, final wins/losses; reliable game-state transitions | NHL fixture replays + live game event comparisons | Planned |
+| 4 | **Sprint 4 — v0.4 Lighting setup** | Select multiple WLED targets/zones, team-color mapping, event templates, brightness/quiet controls | Multi-device sync and individual device failure tests | Planned |
+| 5 | **Sprint 5 — v0.5 Resilience** | Polling schedule, stale-data/offline behavior, memory/performance, security and device configuration improvements | 2-hour stress tests and reconnection/failure injection | Planned |
+| 6 | **Sprint 6 — v0.9 Release candidate** | Hardware integration, setup polish, regression fixes, field-test documentation | **24-hour soak + 3 live NHL games** | Planned |
+| 7 | **Sprint 7 — v1.0 Release** | Stable documented firmware, flash/update instructions, locked acceptance suite and version tag | All MVP gates met; reproducible CI build | Planned |
+
+### Sprint 1 — hardware bring-up (CURRENT)
+
+**Definition of done:** Every item below verified on a CYD unit (not just simulated).
+
+- [ ] GitHub Actions workflow passes; attach run URL in progress log.
+- [ ] PlatformIO ESP32 build produces a flashable firmware image.
+- [ ] Flash successful; display visible and landscape oriented.
+- [ ] Calibrate touch using real four-corner raw readings.
+- [ ] Set up Wi-Fi using on-device portal; show IP on SETUP.
+- [ ] NHL scoreboard shows current games, or a useful error on game-free days.
+- [ ] Pair WLED by discovery or local IPv4 web setup.
+- [ ] Tap HOME/AWAY to change selected WLED's segment 0, and OFF to switch it off.
+- [ ] Verify no automatic WLED send on a new score.
+- [ ] Power cycle, verify Wi-Fi and saved WLED list retained.
+
+**Known limits:** Only first three of eight saved WLED devices shown in touch selection; up to 16 games/day, four shown per screen; approximate default touch mapping; web config restricted to trusted LAN; manual colors overwrite segment 0 state (no automatic restoration yet).
+
+**Evidence / test notes:** Desktop simulator passed on 2026-11-01. PlatformIO and physical tests **NOT RUN** at that time.
+
+**Open blockers:** Need compiled CI result and a real CYD board/WLED validation session.
+
+**Next milestone:** Complete Sprint 1 hardware test checklist and record results.
+
+### Sprint 2 — safe automatic reaction engine
+
+- [ ] Select favorite NHL team and specific live game; default to **disarmed** until explicitly enabled.
+- [ ] Detect novel game events using game/play IDs where available; dedupe across polls/restarts.
+- [ ] Never interpret initial scores on startup as new goals; handle score corrections.
+- [ ] Configurable 0–90s display/stream sync delay, including cancel on disarm.
+- [ ] Save per-target WLED state; restore it after event or abort.
+- [ ] Define trigger priority/cooldown for overlapping events; restore on Wi-Fi loss/restart.
+- [ ] Simulator fixtures: duplicates, missing polls, correction, rapid double-goal, disconnect, restart.
+- [ ] Hardware gate: expected single action and successful state restoration for each fixture.
+
+### Sprint 3 — NHL event policies
+
+**Proposed defaults; user-adjustable, subject to real-game validation:**
+
+| Event | Proposed reaction | Duration |
+|---|---|---|
+| Favorite-team goal | Team-color celebration | 10s |
+| Opponent goal | Brief opposing-color pulse | 3s |
+| Power play | Alternating team colors, gentle rate | While event active |
+| Intermission | Dim or neutral scene | While intermission active |
+| Favorite-team win | Victory scene, then restore | 20s |
+| Score correction | No celebration; refresh data only | None |
+
+- [ ] Validate data availability for goals, period status, power plays and finals.
+- [ ] Ensure event classification is data-driven, not inferred solely from the latest score.
+- [ ] Provide disabled/no-op fallback when event details are unreliable.
+- [ ] No rapid flashing or strobes; brightness ceiling and cool-down enforcement.
+
+### Sprint 4 — multi-WLED controls and user experience
+
+- [ ] Discover and label controllers; permit selecting all, a group, or individual targets.
+- [ ] Apply team colors across selected devices, gracefully handling offline devices.
+- [ ] Add optional zone/segment targeting if RAM/network budget allows.
+- [ ] Preview each WLED target safely; save profiles per favorite team.
+- [ ] Make armed/disarmed state and active-event timer obvious on device.
+- [ ] Define compatibility strategy with existing GlowDeck Android app; **no requirement for that app to be running**.
+
+### Sprint 5 — network, performance and safety
+
+- [ ] Adaptive NHL polling target: ~15 minutes outside active play, ~60 seconds near game start, ~20 seconds for live games, within provider rate and device constraints. **v0.1 currently polls every 60 seconds.**
+- [ ] Exponential backoff with jitter and last-updated timestamp when API or Wi-Fi fails.
+- [ ] Proper certificate validation for HTTPS, no embedded Wi-Fi passwords/API secrets.
+- [ ] Prevent setup endpoints from exposing private configuration on untrusted networks.
+- [ ] Add firmware/update recovery approach appropriate to flash capacity (OTA only if safe).
+- [ ] Test memory stability, network latency, watchdog recovery and stale-event handling.
+
+### Sprints 6–7 — release candidate and v1.0
+
+- [ ] Repeat all Sprint 1–5 hardware acceptance tests.
+- [ ] Replay score/event sequences with a WLED simulator and real devices.
+- [ ] Perform a 24-hour connected soak test.
+- [ ] Observe **at least three real NHL games**, noting feed delays, missed/duplicate triggers and restore correctness.
+- [ ] Publish firmware build artifacts, release notes, hardware pin map and troubleshooting.
+- [ ] Tag `v1.0.0` only after acceptance criteria are met.
+
+## 4. Test intervals (from original blueprint)
+
+| When | Duration | What to verify |
+|---|---|---|
+| Each small change | **5–10 minutes** | Native tests, brief device smoke, touch input, expected WLED target |
+| Each completed milestone | **30–60 minutes** | Full UI→NHL→event logic→WLED integration and failure/restore checks |
+| Every week | **2 hours** | Device stability, Wi-Fi drops, WLED disconnects, stale-feed recovery |
+| Before v1.0 | **24 hours** | Continuous connected soak, reconnects, memory stability |
+| Before v1.0 | **3 live games** | Delays, event dedupe, real goals/power plays, correct event effects |
+
+Record **date, device revision, firmware commit, test, expected result, actual result, outcome, and evidence** in `docs/VALIDATION.md`.
+
+## 5. Planned post-v1.0 expansions
+
+- **v1.1:** follow multiple concurrent NHL games and favorite-team priority.
+- **v1.2:** league adapters for **NFL, MLB, NBA and college sports**; league-specific events and colors.
+- **v1.3:** optional interoperability with GlowDeck Android (profiles, scene definitions, multi-WLED zones), while CYD retains stand-alone operation.
+- **v2.x:** custom animations, scoreboard dashboards, user-designed events; optional audio/music/FFT features assessed separately based on hardware/memory/legal feasibility.
+
+## 6. Architecture and constraints
+
+```text
+NHL API / future league adapters
+              |
+        Sports data adapter
+              |
+         Game model + event detector ----> deterministic simulator/tests
+              |
+   safe rule engine + optional delay
+              |
+    WLED target selector / scheduler
+              |
+      WLED local JSON / later DDP
+              |
+         Wi-Fi LED controllers
+
+  CYD UI <--> saved device config / favorites / arming state
+```
+
+**Architecture rules:** retain a portable event/state engine separate from network, UI and hardware; no mandatory cloud/backend; minimize WLED traffic; protect existing segments/presets; do not trigger on uncertain data; manual control works independently of sports feeds.
+
+## 7. Risks, decisions and open questions
+
+| ID | Item | Impact / mitigation | State |
+|---|---|---|---|
+| R-01 | CYD hardware pin / screen / touch variants | Board bring-up and four-corner calibration first | Open |
+| R-02 | Public NHL endpoints may change or rate-limit | Adapter boundary, bounded requests, last-known-good state | Open |
+| R-03 | TV delay can exceed API timing | Configurable 0–90s reaction delay; test with real broadcasts | Planned |
+| R-04 | WLED state overwritten by event effects | Snapshot/restore and strict target scope in Sprint 2 | Open |
+| R-05 | Network/mDNS isolation | Manual-IP fallback on LAN | Mitigation coded, untested |
+| R-06 | HTTPS prototype skips certificate verification | Block production release until verified TLS | Open |
+| R-07 | False goals / duplicate events | Event identity, baseline suppression, dedupe and correction tests | Planned |
+| D-01 | NHL first, other leagues after reliable NHL release | Keep league adapter interface modular | Accepted |
+| D-02 | v0.1 is **manual-only** for LEDs | No surprise automatic reactions before restore engine | Accepted |
+| D-03 | Device must function without a continuously running PC/server | Local Wi-Fi + WLED communication | Accepted |
+
+## 8. Change-control and tracking convention
+
+When updating:
+1. Update the relevant sprint checklist and status table.
+2. Add one entry to `docs/PROGRESS_LOG.md` with **date, version, what changed, tests, next action**.
+3. Update `docs/VALIDATION.md` with proof of build/hardware checks.
+4. If the scope changes, revise acceptance criteria rather than silently marking a feature done.
+5. Keep the README focused on installation; link here for the long-term roadmap.
+
+### Immediate priority queue
+
+1. **P0** — Establish CI and prove `pio run -e cyd` compiles.
+2. **P0** — Flash the CYD; calibrate touch orientation and test Wi-Fi.
+3. **P0** — Verify NHL response and one WLED device on the local LAN.
+4. **P1** — Fix any pin/library/network faults discovered on device.
+5. **P1** — Close Sprint 1 and start **Sprint 2 automatic goal engine** behind an opt-in switch.
