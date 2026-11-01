@@ -21,7 +21,12 @@ enum class ActionType : uint8_t {
     None, SelectGame, SelectLed, PreviousGames, NextGames,
     ScanLeds, TeamAway, TeamHome, PowerOff, RefreshNhl
 };
-struct UiAction { ActionType type = ActionType::None; int index = -1; };
+struct UiAction {
+    ActionType type;
+    int index;
+    UiAction(ActionType type_ = ActionType::None, int index_ = -1)
+        : type(type_), index(index_) {}
+};
 
 class Ui {
 public:
