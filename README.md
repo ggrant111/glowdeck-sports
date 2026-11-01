@@ -86,7 +86,7 @@ Push the source to GitHub and open **Actions → Build and test GameDay firmware
 | No auto effects | Score update NEVER sends a WLED request |
 | Power-cycle | Wi-Fi and WLED IP list retained |
 
-**Verification status at packaging:** portable simulator compiled and passed locally. PlatformIO could not be installed due to network restrictions, so both `pio test -e native` and ESP32 target compilation remain **unverified**. Hardware requires your ESP32 unit. See `docs/VALIDATION.md` for exact evidence and known issues.
+**Verification status (2026-11-01):** portable simulator passed locally. GitHub Actions [run 41364609955](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955) passed all 7 native Unity tests, built the ESP32 target and uploaded the firmware artifact. **Hardware flashing, touchscreen calibration, live NHL polling and real WLED control are still unverified.** Hardware requires your ESP32 unit. See `docs/VALIDATION.md` for exact evidence and known issues.
 
 ## Project tree
 

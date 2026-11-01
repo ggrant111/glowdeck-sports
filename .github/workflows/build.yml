@@ -1,6 +1,8 @@
 name: Build and test GameDay firmware
 on:
   push:
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 jobs:
   platformio:

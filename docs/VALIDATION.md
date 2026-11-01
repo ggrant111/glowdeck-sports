@@ -1,9 +1,9 @@
 # Validation log — v0.1
 
-## Local verification result
+## Verification results
 
 - PASS: `scripts/check-native.sh` compiled the simulator with system g++ using `-Wall -Wextra -Werror` and executed it successfully.
-- NOT RUN: PlatformIO native Unity tests or `pio run -e cyd`. PlatformIO is not installed and installation from PyPI failed due to disabled external network resolution.
+- PASS IN GITHUB ACTIONS (2026-11-01): 7/7 PlatformIO native Unity tests, `pio run -e cyd` firmware compilation, and firmware artifact upload ([run 41364609955](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955)). The current local sandbox still does not have PlatformIO.
 - NOT RUN: actual CYD and WLED hardware testing.
 
 ## Automated checks available
@@ -14,7 +14,7 @@
 
 ## Not verified in this environment
 
-- **ESP32 PlatformIO compile** (requires PlatformIO and cached/downloadable espressif32 platform/libraries).
+- **Physical flash / boot** (firmware has compiled in GitHub Actions, but has not been uploaded to a real CYD).
 - Physical ILI9341 TFT and XPT2046 touch mapping/calibration for a specific board revision.
 - First-boot captive portal and reliable 2.4 GHz Wi-Fi connectivity.
 - Live internet NHL HTTPS redirect/JSON payload response at runtime.

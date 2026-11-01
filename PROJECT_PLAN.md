@@ -4,7 +4,7 @@
 > **Project:** GlowDeck GameDay · **Hardware:** ESP32-2432S028R ("Cheap Yellow Display" / CYD, 2.8-inch resistive touchscreen)  
 > **Repository:** https://github.com/ggrant111/glowdeck-sports  
 > **Owner:** Geoff · **Created:** 2026-11-01 · **Last reviewed:** 2026-11-01  
-> **Current phase:** Sprint 1 / v0.1 — firmware source prepared; build and physical acceptance outstanding.
+> **Current phase:** Sprint 1 / v0.1 — firmware source and CI build VERIFIED; physical acceptance outstanding.
 
 ## 0. How to keep this plan current
 
@@ -55,8 +55,8 @@ A standalone, touch-controlled GameDay console that reads live sports scores and
 
 ### Still pending verification
 
-- [ ] GitHub Actions / PlatformIO native Unity tests pass.
-- [ ] ESP32 `pio run -e cyd` firmware build passes.
+- [x] GitHub Actions / PlatformIO native Unity tests pass (7/7, [run 41364609955](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955)).
+- [x] ESP32 `pio run -e cyd` firmware build passes ([CI run](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955)).
 - [ ] Upload and boot on an actual ESP32-2432S028R.
 - [ ] Screen orientation, resistive touch corners and calibration confirmed.
 - [ ] Wi-Fi onboarding, reconnect and persisted settings confirmed on hardware.
@@ -85,8 +85,8 @@ The **week numbers are sequence targets, not calendar commitments**; advance onl
 
 **Definition of done:** Every item below verified on a CYD unit (not just simulated).
 
-- [ ] GitHub Actions workflow passes; attach run URL in progress log.
-- [ ] PlatformIO ESP32 build produces a flashable firmware image.
+- [x] GitHub Actions workflow passed on 2026-11-01: [run 41364609955](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955).
+- [x] PlatformIO ESP32 build produced the `GlowDeck-GameDay-v0.1-firmware` Actions artifact.
 - [ ] Flash successful; display visible and landscape oriented.
 - [ ] Calibrate touch using real four-corner raw readings.
 - [ ] Set up Wi-Fi using on-device portal; show IP on SETUP.
@@ -98,9 +98,9 @@ The **week numbers are sequence targets, not calendar commitments**; advance onl
 
 **Known limits:** Only first three of eight saved WLED devices shown in touch selection; up to 16 games/day, four shown per screen; approximate default touch mapping; web config restricted to trusted LAN; manual colors overwrite segment 0 state (no automatic restoration yet).
 
-**Evidence / test notes:** Desktop simulator passed on 2026-11-01. PlatformIO and physical tests **NOT RUN** at that time.
+**Evidence / test notes:** Desktop simulator passed on 2026-11-01. GitHub Actions passed 7/7 native tests and compiled/uploaded an ESP32 firmware artifact on 2026-11-01 ([evidence](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955)). Physical device tests **NOT RUN**.
 
-**Open blockers:** Need compiled CI result and a real CYD board/WLED validation session.
+**Open blockers:** Need a real CYD board/WLED validation session; do not classify this release as hardware-verified yet.
 
 **Next milestone:** Complete Sprint 1 hardware test checklist and record results.
 
@@ -227,7 +227,7 @@ When updating:
 
 ### Immediate priority queue
 
-1. **P0** — Establish CI and prove `pio run -e cyd` compiles.
+1. **DONE** — Established CI, passed 7/7 native tests, compiled ESP32 firmware, and uploaded artifact.
 2. **P0** — Flash the CYD; calibrate touch orientation and test Wi-Fi.
 3. **P0** — Verify NHL response and one WLED device on the local LAN.
 4. **P1** — Fix any pin/library/network faults discovered on device.

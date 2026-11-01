@@ -14,6 +14,14 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 
 **Next:** Run GitHub Actions, fix any compile errors; bring up the board and a WLED device; record each acceptance-test result in `docs/VALIDATION.md`. Only then close Sprint 1.
 
+### 2026-11-01 — Repository sync and CI proof
+
+- **Changed:** Published all 18 Sprint 1 source and documentation files, plus `PROJECT_PLAN.md`, to `ggrant111/glowdeck-sports` main. Fixed PlatformIO native test linking (`test_build_src = yes`), pinned the upstream touchscreen library at commit `f956c5d`, and made `UiAction` constructible under the ESP32 project's C++ mode.
+- **Verified:** [GitHub Actions run 41364609955](https://github.com/ggrant111/glowdeck-sports/actions/runs/41364609955) succeeded: **7/7 native tests passed**, **ESP32 CYD firmware compiled**, and firmware build artifact **GlowDeck-GameDay-v0.1-firmware** was uploaded.
+- **Failed / blockers:** Earlier CI runs initially exposed a missing native test source link, a nonexistent library version, and touch/UI compile incompatibilities; all fixed. **Physical ESP32 + WLED acceptance remains untested.**
+- **Plan changes / decisions:** Sprint 1 source and CI gates checked off. No automatic goal lighting until Sprint 2 safety/state restoration is complete.
+- **Next actions:** Flash the compiled firmware on an ESP32-2432S028R, calibrate touch, connect Wi-Fi, verify live NHL data, pair one WLED controller, confirm manual colors/power-off and persistence.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
