@@ -90,3 +90,10 @@
 - PASS: [Cross-platform audio parity run 41383412448](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) — original horns, custom WAV validation, team-specific audio selection, safe mute and demo checks.
 - Browser: hosted [GlowDeck v0.4 simulator](https://glowdeck-gameday-simulator.lovable.app) reports 43 builder tests and Chromium mobile layout checks. **Not personally tested on iOS Safari**.
 - NOT RUN: actual speaker on CYD, custom WAV microSD transfer/read, hardware audio fidelity/volume, touch response while SD playback active, Fire TV native audio focus/mixing while YouTube TV is streaming, real combined audio+WLED live goal.
+
+## 2026-11-01 — Live Fire TV v0.4 goal audio + WLED field test (user reported)
+
+- **PASS — firsthand user report:** An Anaheim Ducks goal during an actual NHL game triggered **both audible goal sound and WLED goal lighting** under GameDay v0.4. This is the first user-confirmed combined live goal/audio/light result for the Fire TV build.
+- **Evidence level:** User-observed result, not an independently captured video, Android logcat, or timestamped NHL event trace. Do not infer exact detection delay or team preset, or claim that both teams/custom WAV were tested.
+- **Still to verify:** Whether playback continued while another streaming app (e.g. YouTube TV) had video/audio focus; precise lighting restoration after eight seconds; custom WAV import/playback; extended background reliability.
+- **ESP32 remains untested on physical hardware**: this result validates the Fire TV path, not the CYD speaker or microSD/audio pipeline.

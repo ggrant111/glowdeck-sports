@@ -359,3 +359,10 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 - [x] [Hosted browser simulator](https://glowdeck-gameday-simulator.lovable.app) published with SOUND tab. Provider reports 43 tests and mobile Chromium checks, not real Safari sound validation.
 - [ ] Speaker DAC output, CYD touch/SD interaction, actual WLED scene+audio synchronization and long-run device reliability remain untested.
 - [ ] Fire TV sound mixing with YouTube TV and custom WAV document picker behavior remain untested.
+
+### Fire TV v0.4 first live goal + audio validation (2026-11-01)
+
+- [x] **First user-observed live NHL Anaheim goal** triggered both WLED lighting and sound on the Fire TV v0.4 implementation.
+- [ ] Verify audio playback during YouTube TV / another foreground streaming app and confirm video playback isn't disturbed.
+- [ ] Verify exact eight-second scene restoration and test custom imported WAV, separate team assignments, and a goal for the opposing side.
+- [ ] Validate ESP32 speaker/audio on CYD when hardware is available. Fire TV success does not prove ESP32 physical parity.

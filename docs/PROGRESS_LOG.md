@@ -119,6 +119,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Still pending:** actual CYD amplifier/microSD/touch bus/audio quality testing; sound while YouTube TV has audio focus; custom WAV import on a real Fire TV; real iPhone Safari audio test; full goal/lighting/audio synchronization.
 - **Risk:** ESP32 flash partition at 91.9%. v0.4 remains a hardware-unverified test release.
 
+### 2026-11-01 — First confirmed real NHL sound + light celebration
+
+- **Field success (user reported):** During an actual Anaheim goal, Fire TV v0.4 simultaneously produced the assigned audio and WLED celebration. This confirms the integrated path beyond build-only tests.
+- **Not inferred:** Specific sound asset (built-in vs custom), current streaming app/audio focus, whether the original WLED scene restored after eight seconds, and physical ESP32 behavior. All remain separate acceptance checks.
+- **Next:** Confirm audio coexists with YouTube TV, WLED restores reliably after eight seconds, test custom WAV, and later validate ESP32 hardware.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
