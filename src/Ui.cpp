@@ -32,9 +32,10 @@ void Ui::header(const UiState &state, const char *title) {
 }
 void Ui::footer() {
     tft_.fillRect(0, FOOTER_Y-1, 320, 35, CARD);
-    button(4, 208, 101, 28, "SCORES", page_ == Page::Scores ? TEAL : CARD);
-    button(110, 208, 100, 28, "LIGHTS", page_ == Page::Lights ? TEAL : CARD);
-    button(215, 208, 101, 28, "SETUP", page_ == Page::Setup ? TEAL : CARD);
+    button(2, 208, 77, 28, "SCORES", page_ == Page::Scores ? TEAL : CARD);
+    button(82, 208, 77, 28, "GAME", page_ == Page::GameDay ? TEAL : CARD);
+    button(162, 208, 77, 28, "LIGHTS", page_ == Page::Lights ? TEAL : CARD);
+    button(242, 208, 76, 28, "SETUP", page_ == Page::Setup ? TEAL : CARD);
 }
 void Ui::scores(const UiState &state) {
     const gd::Scoreboard &s = *state.scoreboard;
@@ -68,6 +69,35 @@ void Ui::scores(const UiState &state) {
         tft_.drawCentreString(score, 196, y+8, 2);
         tft_.setTextColor(gd::isLive(g) ? GOLD : MUTED, selected ? SELECT : CARD);
         tft_.drawRightString(gd::gameStateText(g), 303, y+8, 2);
+    }
+}
+void Ui::gameday(const UiState &state) {
+    const gd::Game *game = gd::findGame(*state.scoreboard, state.selectedGameId);
+    if (!game) {
+        tft_.setTextColor(MUTED, BG);
+        tft_.drawCentreString("Choose a game in SCORES", 160, 66, 2);
+        tft_.drawCentreString("Then choose a WLED in LIGHTS", 160, 102, 2);
+        return;
+    }
+    tft_.setTextColor(FG, BG);
+    tft_.drawCentreString(String(game->away) + "  " + String(game->awayScore) + " : " +
+             String(game->homeScore) + "  " + game->home, 160, 42, 4);
+    tft_.setTextColor(MUTED, BG);
+    tft_.drawCentreString(String(gd::gameStateText(*game)), 160, 73, 2);
+    tft_.drawString("MY TEAM", 10, 99, 2);
+    button(112, 90, 94, 31, game->away, state.favoriteHome ? CARD : TEAL);
+    button(213, 90, 95, 31, game->home, state.favoriteHome ? TEAL : CARD);
+    tft_.setTextColor(FG, BG);
+    tft_.drawString("TV DELAY", 9, 139, 2);
+    button(115, 130, 38, 31, "-", CARD);
+    tft_.drawCentreString(String(state.goalDelay) + "s", 181, 139, 2);
+    button(238, 130, 39, 31, "+", CARD);
+    button(12, 166, 296, 33, state.restorePending ? "RESTORING LIGHTS" :
+        (state.goalActive ? "GOAL LIGHTS ACTIVE" : (state.goalArmed ? "DISARM GOALS" : "ARM GOAL LIGHTS")),
+        state.goalArmed ? TEAL : CARD);
+    if (state.goalQueued) {
+        tft_.setTextColor(GOLD, BG);
+        tft_.drawCentreString("Goal waiting for TV delay", 160, 199, 1);
     }
 }
 void Ui::lights(const UiState &state) {
@@ -108,9 +138,10 @@ void Ui::setup(const UiState &state) {
 }
 void Ui::draw(const UiState &state) {
     tft_.fillScreen(BG);
-    header(state, page_ == Page::Scores ? "GAMEDAY" : (page_ == Page::Lights ? "WLED" : "STATUS"));
+    header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : "STATUS")));
     switch (page_) {
         case Page::Scores: scores(state); break;
+        case Page::GameDay: gameday(state); break;
         case Page::Lights: lights(state); break;
         case Page::Setup: setup(state); break;
     }
@@ -124,8 +155,9 @@ void Ui::draw(const UiState &state) {
 }
 UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
     if (y >= FOOTER_Y) {
-        if (x < 107) page_ = Page::Scores;
-        else if (x < 213) page_ = Page::Lights;
+        if (x < 80) page_ = Page::Scores;
+        else if (x < 160) page_ = Page::GameDay;
+        else if (x < 240) page_ = Page::Lights;
         else page_ = Page::Setup;
         return {};
     }
@@ -139,6 +171,16 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             int idx = state.gamePage * 4 + row;
             if (row < 4 && idx < state.scoreboard->count) return {ActionType::SelectGame, idx};
         }
+    } else if (page_ == Page::GameDay) {
+        if (y >= 90 && y < 124) {
+            if (x >= 112 && x < 210) return {ActionType::FavoriteAway};
+            if (x >= 210) return {ActionType::FavoriteHome};
+        }
+        if (y >= 129 && y < 163) {
+            if (x >= 112 && x < 157) return {ActionType::DelayMinus};
+            if (x >= 235 && x < 280) return {ActionType::DelayPlus};
+        }
+        if (y >= 166 && y < 200) return {ActionType::ToggleArm};
     } else if (page_ == Page::Lights) {
         if (y >= 37 && y < 154) {
             int row = (y-37)/39;

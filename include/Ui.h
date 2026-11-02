@@ -11,23 +11,28 @@ struct UiState {
     int gamePage = 0;
     bool wifiConnected = false;
     bool nhlConnected = false;
+    bool goalArmed = false;
+    bool goalActive = false;
+    bool goalQueued = false;
+    bool favoriteHome = true;
+    uint8_t goalDelay = 0;
+    bool restorePending = false;
     String ip;
     String nhlError;
     String message;
 };
 
-enum class Page : uint8_t { Scores, Lights, Setup };
+enum class Page : uint8_t { Scores, GameDay, Lights, Setup };
 enum class ActionType : uint8_t {
-    None, SelectGame, SelectLed, PreviousGames, NextGames,
-    ScanLeds, TeamAway, TeamHome, PowerOff, RefreshNhl
+    None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
+    TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
+    FavoriteAway, FavoriteHome, DelayMinus, DelayPlus
 };
 struct UiAction {
     ActionType type;
     int index;
-    UiAction(ActionType type_ = ActionType::None, int index_ = -1)
-        : type(type_), index(index_) {}
+    UiAction(ActionType t = ActionType::None, int i = -1) : type(t), index(i) {}
 };
-
 class Ui {
 public:
     void begin();
@@ -41,6 +46,7 @@ private:
     void header(const UiState &state, const char *title);
     void footer();
     void scores(const UiState &state);
+    void gameday(const UiState &state);
     void lights(const UiState &state);
     void setup(const UiState &state);
     void button(int x, int y, int w, int h, const String &label, uint16_t color);

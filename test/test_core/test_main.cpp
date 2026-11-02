@@ -50,6 +50,16 @@ void test_colors() {
     TEST_ASSERT_EQUAL_HEX32(0xFFB81C, gd::teamColor("BOS"));
     TEST_ASSERT_EQUAL_HEX32(0x31837A, gd::teamColor("BAD"));
 }
+void test_default_disarmed_and_requires_live_game();
+void test_goal_dedup_and_delay();
+void test_correction_and_multigoal_suppress();
+void test_game_switch_and_disarm_cancel();
+void test_network_outage_and_stale_disarm();
+void test_reaction_snapshot_restore_and_cooldown();
+void test_disarm_restores_and_retry_after_wifi();
+void test_reboot_journal_recovery_without_rearming();
+void test_score_final_and_multi_side_jump_suppress();
+void test_timer_wraparound();
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_goal_increase_live);
@@ -59,5 +69,15 @@ int main(int, char**) {
     RUN_TEST(test_live_crit);
     RUN_TEST(test_find_game);
     RUN_TEST(test_colors);
+    RUN_TEST(test_default_disarmed_and_requires_live_game);
+    RUN_TEST(test_goal_dedup_and_delay);
+    RUN_TEST(test_correction_and_multigoal_suppress);
+    RUN_TEST(test_game_switch_and_disarm_cancel);
+    RUN_TEST(test_network_outage_and_stale_disarm);
+    RUN_TEST(test_reaction_snapshot_restore_and_cooldown);
+    RUN_TEST(test_disarm_restores_and_retry_after_wifi);
+    RUN_TEST(test_reboot_journal_recovery_without_rearming);
+    RUN_TEST(test_score_final_and_multi_side_jump_suppress);
+    RUN_TEST(test_timer_wraparound);
     return UNITY_END();
 }

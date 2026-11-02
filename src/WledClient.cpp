@@ -27,7 +27,7 @@ bool request(const String &ip, const char *path, const String *post, String &rep
 }
 }
 
-void WledClient::begin() { restore(); }
+void WledClient::begin() { restore(); loadAutoBackup(); }
 void WledClient::restore() {
     Preferences p;
     p.begin("gd-leds", true);
@@ -103,8 +103,9 @@ bool WledClient::probe(size_t index) {
 }
 bool WledClient::applyColor(size_t index, uint32_t rgb, String &error) {
     if (index >= count_) { error = "Choose a WLED device"; return false; }
-    // WLED's default segment, id 0. Sprint 2 will support multiple segments/zones.
+    // Explicit manual command for segment 0 only. Auto scenes require snapshot.
     DynamicJsonDocument doc(256);
+    doc["udpn"]["nn"] = true;
     doc["on"] = true;
     doc["bri"] = 160;
     JsonObject seg = doc.createNestedArray("seg").createNestedObject();
@@ -124,10 +125,99 @@ bool WledClient::applyColor(size_t index, uint32_t rgb, String &error) {
 }
 bool WledClient::setPower(size_t index, bool on, String &error) {
     if (index >= count_) { error = "Choose a WLED device"; return false; }
-    String body = on ? "{\"on\":true}" : "{\"on\":false}";
+    String body = on ? "{\"on\":true,\"udpn\":{\"nn\":true}}" : "{\"on\":false,\"udpn\":{\"nn\":true}}";
     String reply;
     bool ok = request(devices_[index].ip, "/json/state", &body, reply);
     devices_[index].online = ok;
     if (!ok) error = "WLED power request failed";
     return ok;
+}
+
+// Fail closed: never issue an automatic effect without an NVS snapshot first.
+void WledClient::loadAutoBackup() {
+    Preferences p;
+    p.begin("gd-auto", true);
+    autoBackup_ = p.getString("backup", "");
+    p.end();
+}
+bool WledClient::persistAutoBackup(const String &value) {
+    Preferences p;
+    if (!p.begin("gd-auto", false)) return false;
+    const bool success = value.isEmpty() ? p.remove("backup") :
+        p.putString("backup", value) == value.length();
+    p.end();
+    if (success) {
+        autoBackup_ = value;
+        return true;
+    }
+    return false;
+}
+
+bool WledClient::beginAutoColor(size_t index, uint32_t rgb, String &error) {
+    if (index >= count_) { error = "No selected WLED"; return false; }
+    if (autoRestorePending()) { error = "Restore previous scene first"; return false; }
+    String raw;
+    const String ip = devices_[index].ip;
+    if (!request(ip, "/json/state", nullptr, raw)) { error = "WLED snapshot failed"; return false; }
+    DynamicJsonDocument state(4096);
+    if (deserializeJson(state, raw) || !state["on"].is<bool>() || !state["bri"].is<int>() || !state["seg"].is<JsonArray>()) {
+        error = "WLED state invalid"; return false;
+    }
+    JsonObjectConst original;
+    for (JsonObjectConst s : state["seg"].as<JsonArrayConst>()) {
+        if ((s["id"] | -1) == 0) { original = s; break; }
+    }
+    if (original.isNull() || !original["col"].is<JsonArrayConst>()) {
+        error = "WLED segment 0 unavailable"; return false;
+    }
+    // Whitelist mutable display-state fields; no segment boundary changes.
+    DynamicJsonDocument backup(2048);
+    backup["ip"] = ip;
+    JsonObject b = backup.createNestedObject("state");
+    b["on"] = state["on"];
+    b["bri"] = state["bri"];
+    b["udpn"]["nn"] = true;
+    JsonObject seg = b.createNestedArray("seg").createNestedObject();
+    seg["id"] = 0;
+    const char *fields[] = {"on","bri","fx","sx","ix","pal","c1","c2","c3","cct","rev","mi","frz","sel"};
+    for (const char *k : fields) if (!original[k].isNull()) seg[k] = original[k];
+    seg["col"] = original["col"];
+    String journal;
+    serializeJson(backup, journal);
+    if (journal.length() > 1800 || !persistAutoBackup(journal)) {
+        error = "Could not save WLED backup";
+        return false;
+    }
+    if (!applyColor(index, rgb, error)) {
+        error = "Scene failed; restore pending";
+        return false;
+    }
+    return true;
+}
+
+bool WledClient::restoreAuto(String &error) {
+    if (autoBackup_.isEmpty()) return true;
+    DynamicJsonDocument doc(2304);
+    if (deserializeJson(doc, autoBackup_)) {
+        error = "Saved backup invalid - manual recovery required";
+        return false;
+    }
+    const String ip = doc["ip"].as<String>();
+    IPAddress valid;
+    if (!parseIp(ip, valid) || !doc["state"].is<JsonObject>()) {
+        error = "Saved backup invalid - manual recovery required";
+        return false;
+    }
+    String body;
+    serializeJson(doc["state"], body);
+    String reply;
+    if (!request(ip, "/json/state", &body, reply)) {
+        error = "WLED restore pending: " + ip;
+        return false;
+    }
+    if (!persistAutoBackup("")) {
+        error = "WLED restored; journal cleanup failed";
+        return false;
+    }
+    return true;
 }
