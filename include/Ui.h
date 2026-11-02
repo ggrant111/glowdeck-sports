@@ -1,5 +1,6 @@
 #pragma once
 #include "GameCore.h"
+#include "AudioModel.h"
 #include "WledClient.h"
 #include <TFT_eSPI.h>
 
@@ -19,16 +20,23 @@ struct UiState {
     bool goalBaselineReady = false;
     uint8_t goalDelay = 0;
     bool restorePending = false;
+    bool soundEnabled = false;
+    bool soundBusy = false;
+    uint8_t soundVolume = 50;
+    gd::SoundKind awaySound = gd::SoundKind::Horn;
+    gd::SoundKind homeSound = gd::SoundKind::Horn;
     String ip;
     String nhlError;
     String message;
 };
 
-enum class Page : uint8_t { Scores, GameDay, Lights, Setup };
+enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio };
 enum class ActionType : uint8_t {
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
-    CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus
+    CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus,
+    AudioToggle, AudioVolumeDown, AudioVolumeUp, AudioAwayNext, AudioHomeNext,
+    AudioPreviewAway, AudioPreviewHome
 };
 struct UiAction {
     ActionType type;
@@ -51,5 +59,6 @@ private:
     void gameday(const UiState &state);
     void lights(const UiState &state);
     void setup(const UiState &state);
+    void audio(const UiState &state);
     void button(int x, int y, int w, int h, const String &label, uint16_t color);
 };

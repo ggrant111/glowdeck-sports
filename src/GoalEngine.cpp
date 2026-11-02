@@ -111,6 +111,7 @@ void ReactionController::service(uint32_t nowMs, bool networkOk) {
     if (!e.valid) return;
     if (lights_.startColor(e.home?homeColor_:awayColor_)) {
         active_=true; endAt_=nowMs+8000U; ++startedCount_;
+        lastGoalHome_=e.home; lastEventId_=e.eventId;
     }
 }
 }

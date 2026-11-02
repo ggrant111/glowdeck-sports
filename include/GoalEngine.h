@@ -56,10 +56,13 @@ public:
     bool active() const { return active_; }
     uint32_t startedCount() const { return startedCount_; }
     uint32_t restoreCount() const { return restoreCount_; }
+    bool lastGoalHome() const { return lastGoalHome_; }
+    uint32_t lastGoalEventId() const { return lastEventId_; }
 private:
     GoalEngine &engine_;
     LightPort &lights_;
-    bool active_ = false, attemptedRestore_ = false;
+    bool active_ = false, attemptedRestore_ = false, lastGoalHome_ = false;
+    uint32_t lastEventId_=0;
     uint32_t endAt_ = 0, lastRestoreTry_ = 0;
     uint32_t awayColor_ = 0x31837A, homeColor_ = 0x31837A;
     uint32_t startedCount_ = 0, restoreCount_ = 0;

@@ -32,10 +32,11 @@ void Ui::header(const UiState &state, const char *title) {
 }
 void Ui::footer() {
     tft_.fillRect(0, FOOTER_Y-1, 320, 35, CARD);
-    button(2, 208, 77, 28, "SCORES", page_ == Page::Scores ? TEAL : CARD);
-    button(82, 208, 77, 28, "GAME", page_ == Page::GameDay ? TEAL : CARD);
-    button(162, 208, 77, 28, "LIGHTS", page_ == Page::Lights ? TEAL : CARD);
-    button(242, 208, 76, 28, "SETUP", page_ == Page::Setup ? TEAL : CARD);
+    button(1, 208, 62, 28, "SCORES", page_ == Page::Scores ? TEAL : CARD);
+    button(65, 208, 62, 28, "GAME", page_ == Page::GameDay ? TEAL : CARD);
+    button(129, 208, 62, 28, "LIGHTS", page_ == Page::Lights ? TEAL : CARD);
+    button(193, 208, 62, 28, "SETUP", page_ == Page::Setup ? TEAL : CARD);
+    button(257, 208, 62, 28, "SOUND", page_ == Page::Audio ? TEAL : CARD);
 }
 void Ui::scores(const UiState &state) {
     const gd::Scoreboard &s = *state.scoreboard;
@@ -141,14 +142,46 @@ void Ui::setup(const UiState &state) {
     tft_.drawString(state.wifiConnected ? "http://" + state.ip : "Connect to Wi-Fi first", 9, 143, 2);
     button(13, 169, 294, 29, "REFRESH SCORES", TEAL);
 }
+namespace {
+String soundName(gd::SoundKind kind) {
+    switch(kind) {
+        case gd::SoundKind::Horn: return "HORN";
+        case gd::SoundKind::DoubleHorn: return "DOUBLE";
+        case gd::SoundKind::Siren: return "SIREN";
+        case gd::SoundKind::CustomWav: return "CUSTOM";
+        default: return "OFF";
+    }
+}
+}
+void Ui::audio(const UiState &state) {
+    tft_.setTextColor(FG, BG);
+    tft_.drawString("Audio output", 12, 41, 2);
+    button(186, 38, 121, 27, state.soundEnabled?"SOUND ON":"SOUND OFF",
+        state.soundEnabled?TEAL:CARD);
+    tft_.drawString("Volume", 11, 78, 2);
+    button(110, 71, 40, 28, "-", CARD);
+    tft_.drawCentreString(String(state.soundVolume)+"%", 195, 78, 2);
+    button(266, 71, 42, 28, "+", CARD);
+    tft_.drawString("AWAY", 11, 115, 2);
+    button(95, 107, 212, 28, soundName(state.awaySound)+"  >", CARD);
+    tft_.drawString("HOME", 11, 151, 2);
+    button(95, 143, 212, 28, soundName(state.homeSound)+"  >", CARD);
+    button(6, 175, 150, 28, "TRY AWAY", TEAL);
+    button(163, 175, 151, 28, "TRY HOME", TEAL);
+    if(state.soundBusy) {
+        tft_.setTextColor(GOLD,BG);
+        tft_.drawRightString("PLAYING",305,35,1);
+    }
+}
 void Ui::draw(const UiState &state) {
     tft_.fillScreen(BG);
-    header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : "STATUS")));
+    header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : (page_ == Page::Audio ? "AUDIO" : "STATUS"))));
     switch (page_) {
         case Page::Scores: scores(state); break;
         case Page::GameDay: gameday(state); break;
         case Page::Lights: lights(state); break;
         case Page::Setup: setup(state); break;
+        case Page::Audio: audio(state); break;
     }
     footer();
     // Serial logs provide full error messages; short banner here for feedback.
@@ -160,10 +193,11 @@ void Ui::draw(const UiState &state) {
 }
 UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
     if (y >= FOOTER_Y) {
-        if (x < 80) page_ = Page::Scores;
-        else if (x < 160) page_ = Page::GameDay;
-        else if (x < 240) page_ = Page::Lights;
-        else page_ = Page::Setup;
+        if (x < 64) page_ = Page::Scores;
+        else if (x < 128) page_ = Page::GameDay;
+        else if (x < 192) page_ = Page::Lights;
+        else if (x < 256) page_ = Page::Setup;
+        else page_ = Page::Audio;
         return {};
     }
     if (page_ == Page::Scores) {
@@ -200,6 +234,15 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         }
     } else if (page_ == Page::Setup && y >= 169 && y < 200) {
         return {ActionType::RefreshNhl, -1};
+    } else if (page_ == Page::Audio) {
+        if(y>=38&&y<67&&x>=180)return {ActionType::AudioToggle};
+        if(y>=70&&y<101) {
+            if(x>=105&&x<158)return {ActionType::AudioVolumeDown};
+            if(x>=260)return {ActionType::AudioVolumeUp};
+        }
+        if(y>=107&&y<139&&x>=95)return {ActionType::AudioAwayNext};
+        if(y>=143&&y<174&&x>=95)return {ActionType::AudioHomeNext};
+        if(y>=175&&y<204)return {x<160?ActionType::AudioPreviewAway:ActionType::AudioPreviewHome};
     }
     return {};
 }
