@@ -110,7 +110,7 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
     http.end();
     if(parse) { error=String("PBP JSON: ")+parse.c_str(); return false; }
     if(!doc["plays"].is<JsonArray>() || !doc["awayTeam"]["id"].is<int>() ||
-       !doc["homeTeam"]["id"].is<int>() || !doc["id"].is<uint32_t>()) {
+       !doc["homeTeam"]["id"].is<int>()) {
         error="PBP missing required fields"; return false;
     }
     gd::GoalFeed sample;
