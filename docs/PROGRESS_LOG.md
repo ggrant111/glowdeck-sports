@@ -42,6 +42,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Verification:** simulator project reported successful browser interaction at iPhone width (select UTA@BOS → arm → UTA goal), no horizontal scroll; its separate unit tests passed. Physical ESP32 verification remains pending.
 - **Next:** use the hosted link for simulator feedback before buying/receiving hardware.
 
+### 2026-11-01 — Live NHL feeds and local real-WLED testing path
+
+- **Changed:** Hosted simulator now has a Demo/Live NHL toggle and restricted server-side proxy, while retaining MOCK ONLY WLED effects. Added `tools/gameday_bridge.py`, a local mobile-sized interactive NHL/WLED test interface, a detailed setup guide, and GitHub Actions Python unit tests. This is a computer-hosted integration bench separate from the ESP32 firmware.
+- **Verified:** Nine offline Python tests against fake WLED passed, including live-score normalization, segment 0 snapshot/restore, restart recovery, and retain-and-retry after failed restoration. WLED state writes require explicit manual confirmation and are limited to 2–10 seconds.
+- **Not verified:** No real user's WLED or home LAN reached by this session; no proof of physical device control or iPhone access yet. Hosted Lovable build reported its own Live NHL fetch and test checks; user Safari verification pending.
+- **Next:** Verify the hosted Live NHL toggle on iPhone, run the local bridge on a trusted home PC, select a real game and test a short WLED color preview plus scene restoration. Then pursue v0.3 NHL goal-event IDs.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

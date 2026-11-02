@@ -13,6 +13,19 @@ To test: tap **UTA @ BOS** under SCORES → GAME → **ARM GOAL LIGHTS** → **U
 
 This is an independently running NHL-to-WLED console; **no PC is needed once flashed**. The added v0.2 game-reaction system can be tested on a desktop before the CYD arrives. **The default at every boot is DISARMED.** Automatic scenes only run when deliberately armed and a LIVE game and WLED device are selected.
 
+## Live NHL and real WLED testing without the touchscreen (NEW)
+
+- **Hosted [GlowDeck Simulator](https://glowdeck-gameday-simulator.lovable.app):** choose **Demo / Live NHL**. Live scores are fetched through a restricted same-origin server proxy. All light effects in the hosted demo remain FAKE, and live games never automatically trigger lights.
+- **[Local NHL + WLED test bridge](tools/LOCAL_BRIDGE.md):** run a Python 3 standard-library server on your Windows/Mac/Linux computer and open its UI from Safari on the same trusted home LAN. It reads real NHL scores and can change one explicitly configured WLED device for 2–10 seconds, with a saved scene and an automatic restore. There is no cloud relay and no automatic real-goal lighting.
+
+Windows PowerShell, from the repository root (replace IP if your WLED has moved):
+
+```powershell
+py -3 tools\gameday_bridge.py --wled-ip 192.168.1.71 --listen 0.0.0.0
+```
+
+On iPhone open `http://<computer-WiFi-IP>:8787/`, **not** the WLED IP, and enter the bridge access code shown in the computer terminal. Run `ipconfig` on Windows to find your computer IPv4 address. Tests: `python -m unittest discover -s tools/tests -v`. This bridge is a **temporary computer-hosted test bench** and cannot validate the ESP32 hardware. Keep it off public Wi-Fi and never port-forward it.
+
 ## What changed in v0.2
 
 - Four touchscreen tabs: **SCORES**, **GAME**, **LIGHTS**, **SETUP**. GAME shows the selected live matchup, AWAY/HOME favorite-team choice, 0–90-second broadcast delay (15-second on-device steps), and ARM/DISARM action.

@@ -236,3 +236,17 @@ When updating:
 3. **P0** — Verify NHL response and one WLED device on the local LAN.
 4. **P1** — Fix any pin/library/network faults discovered on device.
 5. **DONE (software)** — Sprint 2 v0.2 goal engine, simulator and CI firmware build complete. **NEXT:** hardware acceptance once ESP32 arrives; then event-ID-powered Sprint 3.
+
+## 9. Pre-hardware integration bench (2026-11-01)
+
+The touchscreen has not arrived; Sprint 1/2 **physical acceptance remains blocked**. To reduce risk while hardware is unavailable:
+
+- [x] Added a **Demo / Live NHL** toggle to the separate [hosted GameDay simulator](https://glowdeck-gameday-simulator.lovable.app) with a server-side fixed-endpoint NHL scores proxy and an optional play-by-play game-ID endpoint (provider/phone behavior may vary).
+- [x] Implemented **local-only Python 3 integration bench** under [tools/LOCAL_BRIDGE.md](tools/LOCAL_BRIDGE.md). It retrieves live NHL scores and offers read-only WLED state inspection and **manual 2–10 second solid team-color previews** on one private-LAN WLED controller with a journaled restore.
+- [x] Nine deterministic local bridge unit tests pass against a fake WLED (NHL parsing, snapshot/restore, restart recovery, failure journal retention, validation).
+- [ ] Validate actual NHL requests and **real WLED preview/restore** from the user's home network with the local bridge and iPhone on the same Wi-Fi.
+- [ ] Confirm hosted Live NHL mode from the user's Safari and measure freshness and empty-game handling.
+- [ ] Do not enable **automatic** WLED control from real NHL feeds in this bridge; this is a deliberately manual integration test. The ESP32 v0.2 opt-in engine still awaits hardware acceptance.
+- [ ] When the CYD arrives, use compiled v0.2 firmware and the original Sprint 1/2 board acceptance matrices.
+
+**Safety**: Never expose the bridge port to the public internet. Use an explicit private WLED IP, local access token, brightness cap, snapshot before preview, restore on timeout, and recovery journal after interruption. Initial live scoring observations are not proof of automatic goal-event identity; do not graduate to autonomous lights until event IDs and deduplication are verified.
