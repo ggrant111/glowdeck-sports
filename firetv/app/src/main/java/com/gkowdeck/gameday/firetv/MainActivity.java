@@ -10,6 +10,11 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
+import android.net.Uri;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.Gravity;
@@ -36,7 +41,10 @@ public final class MainActivity extends Activity {
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private final Handler ui=new Handler(Looper.getMainLooper());
     private LinearLayout root,nav,body; private TextView status,notice;private EditText ipEntry;
-    private SharedPreferences prefs;
+    private SharedPreferences prefs, audioPrefs;
+    private GameAudio gameAudio;
+    private String importingTeam="UTA";
+    private static final int IMPORT_WAV=910;
     private NhlApi.Board board; private NhlApi.Game selected;
     private final List<String> lines=new ArrayList<>();
     private List<NhlApi.Play> recentPlays=new ArrayList<>();
@@ -59,15 +67,18 @@ public final class MainActivity extends Activity {
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1001);
         }
-        prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);wledIp=prefs.getString("wledIp","192.168.1.71");
+        prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);
+        audioPrefs=getSharedPreferences("gameday-audio",MODE_PRIVATE);
+        gameAudio=new GameAudio(this);
+        wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.3 started. Celebrations can follow away, home, or both teams.");
+        log("GameDay Fire TV v0.4 started. Built-in and user WAV audio is available.");
         buildShell();render();
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
     @Override protected void onResume(){super.onResume();resumed=true;ui.removeCallbacks(tick);serviceState="";ui.post(tick);}
     @Override protected void onStop(){resumed=false;ui.removeCallbacks(tick);/* Foreground service keeps monitoring. */super.onStop();}
-    @Override protected void onDestroy(){ui.removeCallbacks(tick);if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);io.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){ui.removeCallbacks(tick);if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);if(gameAudio!=null)gameAudio.stop();io.shutdown();super.onDestroy();}
 
     private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private GradientDrawable shape(int fill,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(12));if(stroke!=0)d.setStroke(dp(2),stroke);return d;}
@@ -105,10 +116,10 @@ public final class MainActivity extends Activity {
         if(focus!=null&&focus.getTag() instanceof String)focusedTag=(String)focus.getTag();
         nav.removeAllViews();body.removeAllViews();
         status.setText("NHL: "+fetchStatus+"   |   MONITOR: "+monitorStatus());
-        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","LOG / HELP"};
+        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","SOUND","LOG / HELP"};
         for(int i=0;i<names.length;i++){final int idx=i;Button b=action(names[i],page==i,()->{page=idx;render();});
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(57),1);p.setMargins(0,0,dp(9),0);nav.addView(b,p);}
-        switch(page){case 0:pageScores();break;case 1:pageGame();break;case 2:pageLights();break;default:pageLog();break;}
+        switch(page){case 0:pageScores();break;case 1:pageGame();break;case 2:pageLights();break;case 3:pageAudio();break;default:pageLog();break;}
         if(focusedTag!=null){View saved=root.findViewWithTag(focusedTag);if(saved!=null && saved.isFocusable()){saved.requestFocus();return;}}
         if(getCurrentFocus()==null && nav.getChildCount()>0)nav.getChildAt(page).requestFocus();
     }
@@ -173,6 +184,90 @@ public final class MainActivity extends Activity {
         if(selected==null)card("Standalone light test","No NHL game selected: UTA blue and BOS gold are available to verify WLED anytime.");
         else subtitle("Selected "+selected.away+" vs "+selected.home+" • segment 0 • brightness capped at 160 • previous state restored after 8s.");
         subtitle("Only RFC1918 private IPv4 addresses are accepted. No discovery or cloud relay. Never forward your WLED port to the internet.");
+    }
+
+    private void pageAudio(){
+        heading("GAME DAY SOUNDS");
+        subtitle("Three original built-in horns or custom local WAV • independent of WLED");
+        final boolean enabled=audioPrefs.getBoolean("enabled",false);
+        final int volume=AudioProfile.volume(audioPrefs.getInt("volume",50));
+        LinearLayout master=row();
+        buttons(master,
+          action(enabled?"SOUND ON • TAP TO MUTE":"SOUND OFF • TAP TO ENABLE",enabled,()->
+            {audioPrefs.edit().putBoolean("enabled",!enabled).apply();if(enabled)gameAudio.stop();render();}),
+          action("VOLUME −10",false,()->changeAudioVolume(-10)),
+          action("VOLUME +10",false,()->changeAudioVolume(10)));
+        body.addView(master);
+        subtitle("Volume: "+volume+"% (independent of TV video volume; stream mixing varies by Fire OS)");
+        String away=selected==null?"UTA":selected.away;
+        String home=selected==null?"BOS":selected.home;
+        soundTeamRow(away,"AWAY");
+        soundTeamRow(home,"HOME");
+        card("Custom sound format","WAV PCM mono, 16 kHz, 16-bit, 1–10 seconds, <=320 KB audio. Choose IMPORT WAV or copy via ADB to app's gameday-audio folder. If a custom file is missing, a built-in horn plays instead.");
+        subtitle("IMPORTANT: Background sounds are OFF until enabled here. TV/YouTube audio focus may suppress or mix them; no interruption of WLED restore.");
+    }
+    private void soundTeamRow(String team,String side){
+        int current=AudioProfile.kind(audioPrefs.getInt("kind."+team,AudioProfile.HORN));
+        String file=audioPrefs.getString("clip."+team,team);
+        heading(side+" · "+team);
+        subtitle("Sound: "+AudioProfile.name(current)+(current==AudioProfile.CUSTOM?" ("+file+".wav)":""));
+        LinearLayout row=row();
+        buttons(row,
+            action("NEXT SOUND",false,()->{audioPrefs.edit().putInt("kind."+team,(current+1)%5).apply();render();}),
+            action("▶ PREVIEW",true,()->{if(gameAudio.play(team,true))log("Sound preview "+team);
+              else log("Audio preview unavailable / busy / OFF");render();}),
+            action("IMPORT WAV",false,()->importWav(team)));
+        body.addView(row);
+    }
+    private void changeAudioVolume(int delta){
+        int n=AudioProfile.volume(audioPrefs.getInt("volume",50)+delta);
+        audioPrefs.edit().putInt("volume",n).apply();render();
+    }
+    private void importWav(String team){
+        if(GameDayService.isRunning()){
+            log("Stop monitoring before importing audio to avoid interrupting a goal");render();return;
+        }
+        importingTeam=team;
+        Intent pick=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("*/*");
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try{startActivityForResult(pick,IMPORT_WAV);}
+        catch(Exception ex){log("File picker not installed on this Fire TV. Use ADB copy instructions: "+ex.getMessage());render();}
+    }
+    @Override protected void onActivityResult(int code,int result,Intent data){
+        super.onActivityResult(code,result,data);
+        if(code!=IMPORT_WAV || result!=RESULT_OK || data==null || data.getData()==null)return;
+        Uri uri=data.getData();String team=importingTeam;
+        io.execute(()->{
+            File folder=GameAudio.audioDirectory(this);
+            File temp=new File(folder,team+".tmp"),dst=new File(folder,team+".wav");
+            try{
+                if(!folder.exists()&&!folder.mkdirs())throw new Exception("Cannot create audio folder");
+                long len=0;
+                try(InputStream in=getContentResolver().openInputStream(uri);
+                    FileOutputStream out=new FileOutputStream(temp)){
+                    if(in==null)throw new Exception("Cannot read selected WAV");
+                    byte[] buf=new byte[2048];int n;
+                    while((n=in.read(buf))!=-1){
+                        len+=n;if(len>320044)throw new Exception("WAV file exceeds 10-second limit");
+                        out.write(buf,0,n);
+                    }
+                }
+                byte[] h=new byte[44];
+                try(FileInputStream in=new FileInputStream(temp)){
+                    if(in.read(h)!=44 || AudioProfile.wavBytes(h,temp.length())<0)
+                        throw new Exception("Select canonical mono PCM 16kHz 16-bit WAV");
+                }
+                if(dst.exists()&&!dst.delete())throw new Exception("Cannot replace existing WAV");
+                if(!temp.renameTo(dst))throw new Exception("Cannot store WAV");
+                audioPrefs.edit().putString("clip."+team,team).putInt("kind."+team,AudioProfile.CUSTOM).apply();
+                ui.post(()->{log("Imported "+team+".wav successfully");render();});
+            }catch(Exception ex){
+                temp.delete();String error=ex.getMessage();
+                ui.post(()->{log("WAV import error: "+error);render();});
+            }
+        });
     }
     private void pageLog(){
         heading("CONNECTION / EVENT LOG");subtitle("The NHL/API diagnostic log is visible here. Background monitor state: "+monitorStatus()+". For background detail use adb logcat -s GlowDeckMonitor.");
