@@ -4,7 +4,7 @@
 > **Project:** GlowDeck GameDay · **Hardware:** ESP32-2432S028R ("Cheap Yellow Display" / CYD, 2.8-inch resistive touchscreen)  
 > **Repository:** https://github.com/ggrant111/glowdeck-sports  
 > **Owner:** Geoff · **Created:** 2026-11-01 · **Last reviewed:** 2026-11-01  
-> **Current phase:** Sprint 1 / v0.1 — firmware source and CI build VERIFIED; physical acceptance outstanding.
+> **Current phase:** Sprint 1 hardware validation **blocked until the CYD arrives**; Sprint 2 **v0.2 source, native tests, ESP32 compilation and firmware artifact VERIFIED in CI**, physical acceptance pending.
 
 ## 0. How to keep this plan current
 
@@ -73,15 +73,15 @@ The **week numbers are sequence targets, not calendar commitments**; advance onl
 
 | Week | Milestone / version | Planned deliverable | Test gate | Status |
 |---|---|---|---|---|
-| 1 | **Sprint 1 — v0.1 Foundation** | Touch UI, Wi-Fi, NHL scoreboard, WLED discovery/manual colors, portable simulator and CI | Firmware build, board smoke, one WLED device, no auto triggers | **In progress** (source prepared; hardware + CI pending) |
-| 2 | **Sprint 2 — v0.2 Goal engine** | Selected-game tracking, favorite/opponent goals, event dedupe, arm/disarm, 0–90s delay, state snapshot/restore | Simulated repeated and corrected goals; WLED restore tests | Planned |
+| 1 | **Sprint 1 — v0.1 Foundation** | Touch UI, Wi-Fi, NHL scoreboard, WLED discovery/manual colors, portable simulator and CI | Firmware build, board smoke, one WLED device, no auto triggers | **CI verified, board acceptance blocked** |
+| 2 | **Sprint 2 — v0.2 Goal engine** | Selected-game tracking, conservative score-delta goals, arm/disarm, 0–90s delay, crash-safe state snapshot/restore | 17 native tests; firmware CI; physical WLED restore pending | **Software/CI passed; hardware blocked** |
 | 3 | **Sprint 3 — v0.3 NHL events** | Goal celebrations, power plays, intermissions, final wins/losses; reliable game-state transitions | NHL fixture replays + live game event comparisons | Planned |
 | 4 | **Sprint 4 — v0.4 Lighting setup** | Select multiple WLED targets/zones, team-color mapping, event templates, brightness/quiet controls | Multi-device sync and individual device failure tests | Planned |
 | 5 | **Sprint 5 — v0.5 Resilience** | Polling schedule, stale-data/offline behavior, memory/performance, security and device configuration improvements | 2-hour stress tests and reconnection/failure injection | Planned |
 | 6 | **Sprint 6 — v0.9 Release candidate** | Hardware integration, setup polish, regression fixes, field-test documentation | **24-hour soak + 3 live NHL games** | Planned |
 | 7 | **Sprint 7 — v1.0 Release** | Stable documented firmware, flash/update instructions, locked acceptance suite and version tag | All MVP gates met; reproducible CI build | Planned |
 
-### Sprint 1 — hardware bring-up (CURRENT)
+### Sprint 1 — hardware bring-up (DEFERRED until board arrives)
 
 **Definition of done:** Every item below verified on a CYD unit (not just simulated).
 
@@ -104,16 +104,20 @@ The **week numbers are sequence targets, not calendar commitments**; advance onl
 
 **Next milestone:** Complete Sprint 1 hardware test checklist and record results.
 
-### Sprint 2 — safe automatic reaction engine
+### Sprint 2 — safe automatic reaction engine (v0.2 SOFTWARE VERIFIED)
 
-- [ ] Select favorite NHL team and specific live game; default to **disarmed** until explicitly enabled.
-- [ ] Detect novel game events using game/play IDs where available; dedupe across polls/restarts.
-- [ ] Never interpret initial scores on startup as new goals; handle score corrections.
-- [ ] Configurable 0–90s display/stream sync delay, including cancel on disarm.
-- [ ] Save per-target WLED state; restore it after event or abort.
-- [ ] Define trigger priority/cooldown for overlapping events; restore on Wi-Fi loss/restart.
-- [ ] Simulator fixtures: duplicates, missing polls, correction, rapid double-goal, disconnect, restart.
-- [ ] Hardware gate: expected single action and successful state restoration for each fixture.
+- [x] Select a specific live game, favorite home/away side, and WLED target; arm only by explicit action; every boot starts disarmed.
+- [ ] Add authoritative game/play event-ID processing. **Not yet implemented:** v0.2 uses conservative scoreboard deltas, not confirmed NHL goal identities (planned v0.3).
+- [x] Suppress first-frame goals, duplicate scores, corrections and ambiguous multi-goal jumps; auto-disarm on ambiguity.
+- [x] Adjustable 0–90s delay (15s increments on UI), cancel on disarm, stale feed or game switch.
+- [x] WLED segment-0 and master state snapshot saved to NVS before auto effect; restore after 10s/abort/reboot with retry after Wi-Fi recovery. **Hardware unverified.**
+- [x] Single pending event and 20s cooldown suppress overlapping goals; static solid team colors only.
+- [x] Simulator and **17 native Unity tests** cover duplicate polls, score correction, missed polls, delays, restart, disconnected restores and timer wrap.
+- [x] [GitHub Actions run 41368433335](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335): 17/17 native tests passed, `pio run -e cyd` compiled and `GlowDeck-GameDay-v0.2-firmware` uploaded.
+- [x] Added hardware-free four-page browser mock at `simulator/web/index.html`.
+- [ ] Hardware gate: successful automatic WLED capture/apply/restore, UI touch controls and power-cycle recovery on a physical ESP32-2432S028R.
+
+**Sprint 2 evidence:** [Successful CI run](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335) on 2026-11-01. See [docs/SPRINT2.md](docs/SPRINT2.md) and [docs/VALIDATION_V02.md](docs/VALIDATION_V02.md). **Physical acceptance remains blocked solely by unavailable hardware and unverified LAN/API integrations.**
 
 ### Sprint 3 — NHL event policies
 
@@ -231,4 +235,4 @@ When updating:
 2. **P0** — Flash the CYD; calibrate touch orientation and test Wi-Fi.
 3. **P0** — Verify NHL response and one WLED device on the local LAN.
 4. **P1** — Fix any pin/library/network faults discovered on device.
-5. **P1** — Close Sprint 1 and start **Sprint 2 automatic goal engine** behind an opt-in switch.
+5. **DONE (software)** — Sprint 2 v0.2 goal engine, simulator and CI firmware build complete. **NEXT:** hardware acceptance once ESP32 arrives; then event-ID-powered Sprint 3.

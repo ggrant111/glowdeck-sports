@@ -29,3 +29,9 @@
 - The default touch transform is approximate. Device-specific calibration is required.
 - Wi-FiManager setup blocks normal input while portal is active; after timeout the UI recovers and Wi-Fi can reconnect.
 - Local web setup lacks authentication/HTTPS; do not port-forward it.
+
+## v0.2 milestone (2026-11-01)
+
+- PASS: [CI run 41368433335](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335) — 17/17 native Unity cases, ESP32 PlatformIO compile and firmware artifact upload.
+- PASS: desktop v0.2 mock goal cycle, including restore.
+- NOT RUN: CYD display, WLAN, actual NHL response and real WLED state capture/restore. See [v0.2 validation](VALIDATION_V02.md).

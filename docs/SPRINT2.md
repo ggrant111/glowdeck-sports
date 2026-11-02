@@ -1,6 +1,6 @@
 # Sprint 2 — v0.2 automatic goal engine
 
-**Status:** firmware source implemented; native simulation validated locally, GitHub CI and CYD hardware acceptance need separate confirmation.
+**Status:** v0.2 firmware source and 17/17 native tests **PASSED GitHub Actions CI** ([run 41368433335](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335)); physical CYD hardware acceptance pending.
 
 ## Behavioral contract
 

@@ -22,6 +22,14 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Plan changes / decisions:** Sprint 1 source and CI gates checked off. No automatic goal lighting until Sprint 2 safety/state restoration is complete.
 - **Next actions:** Flash the compiled firmware on an ESP32-2432S028R, calibrate touch, connect Wi-Fi, verify live NHL data, pair one WLED controller, confirm manual colors/power-off and persistence.
 
+### 2026-11-01 — Sprint 2 v0.2 software milestone
+
+- **Changed:** Introduced portable conservative goal engine with explicit arm/disarm, favorite HOME/AWAY selection, 0–90-second broadcast delay, stale-score and correction fail-closed handling, 20-second cooldown and solid 10-second team color. Added WLED snapshot-before-effect and NVS reboot recovery, four-tab GAME UI, on-device local web controls, and a hardware-free browser demonstration.
+- **Verified:** Desktop C++ goal simulator produced 1 team-color scene + 1 restoration. All **17/17 native Unity tests passed**, and ESP32 firmware compiled and uploaded as `GlowDeck-GameDay-v0.2-firmware` in [GitHub Actions run 41368433335](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335).
+- **Blocked:** No physical CYD board yet; touchscreen calibration, live NHL API polling, WLED journal/restore on real hardware and Wi-Fi recovery remain untested. Scoreboard-based events are not authoritative NHL goal-event IDs.
+- **Plan changes / decisions:** Keep v0.1 hardware acceptance open, advance v0.2 software/CI gates. Do not auto-arm after reboot, use only segment 0 and static color until real hardware validation.
+- **Next actions:** Flash and accept v0.1/v0.2 when CYD arrives. Next software sprint: v0.3 NHL event-ID source, power-play and intermission policy behind safety gates.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
