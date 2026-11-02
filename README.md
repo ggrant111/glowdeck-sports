@@ -4,6 +4,13 @@
 
 Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
 
+## Try v0.2 without the ESP32
+
+**[Launch the hosted, mobile-friendly simulator](https://glowdeck-gameday-simulator.lovable.app)** — open directly in Safari or any full browser, including on iPhone. No login or hardware required. The hosted simulator uses fake NHL scores, fake WLED devices, local in-browser controls, a goal timer, and a mock event log. It does **not** drive real lights or run the ESP32 firmware. The source for the browser demo in this repository is `simulator/web/index.html`; that self-contained HTML file works in a regular JavaScript-capable browser but **may show a blank device preview when opened in iOS/ChatGPT/GitHub attachment viewers that block inline JavaScript**. Use the hosted link instead.
+
+To test: tap **UTA @ BOS** under SCORES → GAME → **ARM GOAL LIGHTS** → **UTA goal +1** under Simulation Controls; press **Fast-forward** to watch the mock WLED color change and restoration without waiting.
+
+
 This is an independently running NHL-to-WLED console; **no PC is needed once flashed**. The added v0.2 game-reaction system can be tested on a desktop before the CYD arrives. **The default at every boot is DISARMED.** Automatic scenes only run when deliberately armed and a LIVE game and WLED device are selected.
 
 ## What changed in v0.2

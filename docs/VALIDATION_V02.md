@@ -11,3 +11,5 @@
 See `docs/SPRINT2.md` for hardware matrix and `docs/VALIDATION.md` for retained v0.1 baseline evidence.
 
 - PASS (latest `main`): [CI run 41368809822](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368809822) — 17/17 Unity cases, CYD firmware compile, artifact upload. Includes explicit WLED segment-0 enable/unfreeze fix. No hardware testing claimed.
+
+- Hosted UI smoke verification: [GlowDeck GameDay Simulator](https://glowdeck-gameday-simulator.lovable.app) was tested by the separate Lovable browser build at an iPhone-sized viewport with game selection, arming and simulated Utah goal; this is a separate web mock and not CYD firmware verification. Attachment viewers can block local inline JS.

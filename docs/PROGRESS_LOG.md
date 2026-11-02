@@ -35,6 +35,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - Added explicit WLED segment 0 enable and effect unfreeze before a solid goal color, with prior state still journaled for recovery.
 - [GitHub Actions run 41368809822](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368809822) PASSED on `main`: 17/17 tests, CYD compile, firmware artifact uploaded. No physical device acceptance yet.
 
+### 2026-11-01 — Hosted v0.2 simulator for iPhone
+
+- **User-reported issue:** downloaded HTML simulator opened inside the iOS attachment viewer but inline JavaScript did not render the touchscreen or make its buttons functional.
+- **Resolution:** built and published a separate [mobile-friendly browser simulator](https://glowdeck-gameday-simulator.lovable.app) via Lovable. Added a GitHub README launch link and a visible file-preview fallback/warning. This is **not firmware** and makes no real WLED or NHL requests.
+- **Verification:** simulator project reported successful browser interaction at iPhone width (select UTA@BOS → arm → UTA goal), no horizontal scroll; its separate unit tests passed. Physical ESP32 verification remains pending.
+- **Next:** use the hosted link for simulator feedback before buying/receiving hardware.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
