@@ -60,6 +60,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Verified:** Pure Java tests compiled/executed locally; [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341) passed Android unit testing, APK compilation, checksum and release publishing. Debug APK is a true signed sideloadable package. No real Fire TV / WLED hardware was available to validate behavior.
 - **Next actions:** Sideload the APK on Fire TV, confirm TV remote focus, NHL connection, direct WLED GET/POST, scene restoration, and optional live-goal event test. Record evidence in validation log.
 
+### 2026-11-01 — Fire TV test APK ready to sideload
+
+- Fixed Android SDK CI invocation for GitHub runner and updated GitHub prerelease to the correctly named `GlowDeck-GameDay-FireTV-v0.1.apk`.
+- Added independent Utah-blue/Boston-gold WLED color previews with no NHL matchup, so manual LAN tests work on game-free days.
+- [CI run 41372660218](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372660218) passed Android unit tests, compiled and published the signed debug APK. Physical Fire TV, live NHL and real WLED tests remain open.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

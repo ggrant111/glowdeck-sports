@@ -42,3 +42,5 @@
 - PASS: [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341) — Android SDK, native JVM unit tests, debug APK compile, artifact + release steps succeeded.
 - NOT RUN: Fire TV launcher/D-pad test, actual NHL HTTPS requests from Fire OS, actual WLED LAN communications, effect restoration while interrupted, real-live-game reactions.
 - The APK is a temporary debug-signed prerelease. Full hardware acceptance required before making claims about live event or WLED reliability.
+
+- PASS (final Fire TV v0.1 build): [CI run 41372660218](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372660218) completed native JVM tests, Android APK compile, checksum and test-release publishing. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.1.0-test/GlowDeck-GameDay-FireTV-v0.1.apk). WLED preview can now use UTA blue/BOS gold without a selected game. Fire TV/WLED hardware acceptance still NOT RUN.
