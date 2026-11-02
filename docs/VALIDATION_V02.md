@@ -21,3 +21,5 @@ See `docs/SPRINT2.md` for hardware matrix and `docs/VALIDATION.md` for retained 
 - Live NHL scores at the documented public endpoint were observed via browsing; the hosted simulator uses a restricted same-origin proxy. This does not verify the ESP32's HTTPS implementation.
 - NOT RUN: actual home WLED or real iPhone-to-LAN connection. Physical preview and automatic restoration must be checked from the user's trusted home network.
 - NOT PROVIDED: automatic real NHL events triggering actual lights through the local bridge (manual preview only).
+
+- PASS: [Local bridge CI run 41370774438](https://github.com/ggrant111/glowdeck-sports/actions/runs/41370774438) — nine Python 3.11 offline tests passed. Also manually tested local HTTP server: HTML served, unauthenticated API rejected with 403, valid access code returned configured WLED status. **Not** a real-WLED connectivity test.

@@ -244,6 +244,7 @@ The touchscreen has not arrived; Sprint 1/2 **physical acceptance remains blocke
 - [x] Added a **Demo / Live NHL** toggle to the separate [hosted GameDay simulator](https://glowdeck-gameday-simulator.lovable.app) with a server-side fixed-endpoint NHL scores proxy and an optional play-by-play game-ID endpoint (provider/phone behavior may vary).
 - [x] Implemented **local-only Python 3 integration bench** under [tools/LOCAL_BRIDGE.md](tools/LOCAL_BRIDGE.md). It retrieves live NHL scores and offers read-only WLED state inspection and **manual 2–10 second solid team-color previews** on one private-LAN WLED controller with a journaled restore.
 - [x] Nine deterministic local bridge unit tests pass against a fake WLED (NHL parsing, snapshot/restore, restart recovery, failure journal retention, validation).
+- [x] [Python bridge GitHub Actions CI run 41370774438](https://github.com/ggrant111/glowdeck-sports/actions/runs/41370774438) passed; local server authentication smoke test also passed.
 - [ ] Validate actual NHL requests and **real WLED preview/restore** from the user's home network with the local bridge and iPhone on the same Wi-Fi.
 - [ ] Confirm hosted Live NHL mode from the user's Safari and measure freshness and empty-game handling.
 - [ ] Do not enable **automatic** WLED control from real NHL feeds in this bridge; this is a deliberately manual integration test. The ESP32 v0.2 opt-in engine still awaits hardware acceptance.

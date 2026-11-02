@@ -49,6 +49,11 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Not verified:** No real user's WLED or home LAN reached by this session; no proof of physical device control or iPhone access yet. Hosted Lovable build reported its own Live NHL fetch and test checks; user Safari verification pending.
 - **Next:** Verify the hosted Live NHL toggle on iPhone, run the local bridge on a trusted home PC, select a real game and test a short WLED color preview plus scene restoration. Then pursue v0.3 NHL goal-event IDs.
 
+### 2026-11-01 — Local bridge HTTP and GitHub Actions verification
+
+- **Verified:** [GitHub Actions local bridge workflow 41370774438](https://github.com/ggrant111/glowdeck-sports/actions/runs/41370774438) passed all 9 Python offline tests. A local smoke run served the HTML interface, rejected unauthorized API access (HTTP 403), and accepted a valid access code for GET `/api/status`.
+- **Still pending:** Test on user's iPhone/home computer and actual WLED LAN; local test had no real WLED contact.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
