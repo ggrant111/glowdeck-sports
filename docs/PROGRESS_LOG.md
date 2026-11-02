@@ -73,6 +73,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Open:** User's Fire TV has not been physically tested for HOME/YouTube TV/ESPN transition, continuous monitoring, notification permissions, real network events or restoration.
 - **Next:** Sideload v0.2, connect WLED, arm on a live NHL game, switch to streaming app, validate continuing service with `adb logcat -s GlowDeckMonitor`, and confirm manual STOP and restore.
 
+### 2026-11-01 — Two real NHL goals lit WLED, including during YouTube TV
+
+- User confirmed Anaheim goal lights turned orange and returned to the previous scene, and another Anaheim goal triggered lighting while YouTube TV was playing.
+- The earlier service log showed goal detection, goal effect, and restoration completion over approximately eight seconds. Real-device background operation is now confirmed for this scenario.
+- Remaining tests: exact WLED state comparison, STOP during scene, network-recovery behavior, and sustained multi-game monitoring.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
