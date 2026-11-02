@@ -53,3 +53,5 @@
 - NOT RUN: Real Fire TV background survival with YouTube TV/Prime/ESPN; foreground notification lifecycle and STOP action; real NHL goal and WLED state restoration; OS kill/network-loss tests. This feature is not hardware verified.
 
 - USER HARDWARE CHECK (2026-11-01): Fire TV displayed ARMED after switching to YouTube TV. AirAPK `dumpsys activity services` showed `GameDayService`, `isForeground=true`, and `foregroundId=1227`, roughly 7m41s elapsed. The real WLED eight-second manual test worked. The only current NHL game was in intermission. NHL polling continuity, automatic goal reaction and exact scene restoration still require separate observation.
+
+- PASS, log evidence, 2026-11-01: OTT vs ANA, favorite ANA, 0s delay. ARMED 19:06:28; GOAL WAIT 19:06:53.210; GOAL LIGHTS 19:06:53.897; restored and ARMED 19:07:02.100 (about 8.2s). Physical appearance and exact scene restoration still require visual confirmation.
