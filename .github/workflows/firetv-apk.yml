@@ -1,7 +1,7 @@
 name: Fire TV test APK
 on:
   push:
-    branches: [main]
+    branches: [main, gameday-v0.4-audio]
     paths:
       - 'firetv/**'
       - '.github/workflows/firetv-apk.yml'
@@ -42,6 +42,7 @@ jobs:
             firetv-v0.4.sha256
           retention-days: 90
       - name: Publish standalone Fire TV v0.4 test release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
