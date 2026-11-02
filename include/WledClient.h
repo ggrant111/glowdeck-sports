@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "GameCore.h"
+#include "DdpStream.h"
 
 struct LedDevice {
     String ip;
@@ -21,10 +22,14 @@ public:
     // survives board reboots and must be restored BEFORE the next transaction.
     bool beginAutoColor(size_t index, uint32_t rgb, String &error);
     bool restoreAuto(String &error);
+    bool beginAutoEvent(size_t index,uint32_t rgb,gd::SportEvent kind,String &error);
+    bool ddpEnabled=false;
     bool autoRestorePending() const { return !autoBackup_.isEmpty(); }
     size_t size() const { return count_; }
     const LedDevice& at(size_t i) const { return devices_[i]; }
 private:
+    DdpStream stream_;
+    gd::SportEvent effect_=gd::SportEvent::Goal;
     LedDevice devices_[gd::MAX_LEDS];
     size_t count_ = 0;
     String autoBackup_; // JSON object: {"ip":"...","state":{...}}

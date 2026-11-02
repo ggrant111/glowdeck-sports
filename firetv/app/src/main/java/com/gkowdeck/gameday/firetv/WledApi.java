@@ -24,10 +24,11 @@ final class WledApi {
         obj.put("seg",new JSONArray().put(segment));return obj;
     }
     static JSONObject snapshotRestore(JSONObject original)throws Exception {
+        if(original.optInt("lor",0)!=0)throw new Exception("Disable WLED realtime override first");
         if(!original.has("on")||!original.has("seg"))throw new Exception("Incomplete WLED state; preview not allowed");
         JSONObject restore=new JSONObject();restore.put("on",original.optBoolean("on",false));
         restore.put("bri",Math.max(1,Math.min(255,original.optInt("bri",128))));
-        restore.put("tt",0);restore.put("udpn",new JSONObject().put("nn",true));
+        restore.put("live",false);restore.put("tt",0);restore.put("udpn",new JSONObject().put("nn",true));
         JSONArray source=original.getJSONArray("seg");JSONObject seg0=null;
         for(int i=0;i<source.length();i++){
             JSONObject part=source.optJSONObject(i);

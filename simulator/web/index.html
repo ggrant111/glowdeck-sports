@@ -6,7 +6,9 @@ select{padding:5px;border-radius:5px;background:#1e333b;color:white;border:1px s
 </style></head><body><h1>GlowDeck GameDay v0.4</h1><p>Hardware-free interactive UI mock at the ESP32 320 × 240 screen size. Fake scores and WLED devices; this is not a firmware emulator. Sound previews use the browser's speakers only after a user gesture.</p><p style="color:#d7f3ee;background:#183238;border-left:4px solid #31837a;padding:12px;border-radius:8px"><strong>On iPhone or a restricted file preview?</strong> JavaScript may be blocked here, making the screen blank. Open the <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9;font-weight:700">hosted interactive simulator</a> in Safari instead.</p><main><div class="screen"><div class="head"><b>GLOWDECK</b><strong id="title">NHL</strong><span id="wifi">WiFi</span></div><div class="body" id="body"><p style="padding:20px 8px;text-align:center">Loading simulator… If this stays blank, <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9">open the hosted demo</a> in Safari.</p></div><div class="tabs" id="tabs"></div></div><section class="workbench"><h2>Simulation controls</h2><p>Choose AWAY, HOME, or BOTH goal celebrations, then arm. The simulated goal changes only the corresponding team's light color for eight seconds; no hardware is contacted.</p><button onclick="goal(false)">UTA goal +1</button><button onclick="goal(true)">BOS goal +1</button><button onclick="note('Duplicate poll suppressed')">Duplicate poll</button><button onclick="correction()">Score correction</button><button onclick="disconnect()">Toggle Wi-Fi outage</button><button onclick="reset()">Reboot</button><p>Mock WLED: <span class="light" id="light"></span> <span id="lightlabel">Original scene</span></p><p><label>Custom WAV (local only): <input type="file" id="wavInput" accept=".wav,audio/wav"></label>
 <button onclick="loadCustom()">Assign WAV to <span id="uploadTeam">UTA</span></button></p>
 <p id="customStatus">No custom file selected. Mono PCM 16-kHz, 16-bit WAV, up to 10 seconds.</p>
+<h3>DDP effects — whole-strip mock</h3><p>20fps / eight seconds. Preview while disarmed, or arm and simulate an event. Browser sends no UDP.</p><canvas id="effectStrip" width="480" height="40" style="max-width:100%"></canvas><div id="effectsControls"></div>
 <h3>Mock event log</h3><pre id="log"></pre><p>This browser demo uses only fake NHL scores and mock WLED states; sounds play locally when explicitly enabled. It does not connect to NHL or send real WLED commands. The PlatformIO C++ simulator and Unity tests validate the actual scheduling logic separately.</p></section></main>
+<script src="effects.js"></script>
 <script>
 let s,t;const $=id=>document.getElementById(id);
 let audioCtx=null,oscillators=[],customBuffers={UTA:null,BOS:null},audioConsent=false,activeNode=null;
@@ -68,12 +70,13 @@ async function loadCustom(){
 }
 function selectUploadTeam(team){s.uploadTeam=team;render()}
 const log=m=>{$('log').textContent+=m+'\n';$('log').scrollTop=99999};
-function reset(){clearTimeout(t);stopAudio();s={page:'scores',away:1,home:0,armed:false,delay:0,mode:'away',online:true,selected:false,pending:false,active:false,color:'#bd8651',audio:false,volume:50,sound:{UTA:1,BOS:1},uploadTeam:'UTA'};$('log').textContent='';log('Reboot → disarmed; original WLED untouched');render()}
-function cancel(){stopAudio();clearTimeout(t);if(s.pending)log('Cancelled delayed goal');if(s.active)log('Auto scene → original restored');s.pending=false;s.active=false;s.color='#bd8651'}
+function reset(){stopEffectPreview();clearTimeout(t);stopAudio();s={ddp:false,effectMask:127,cooldownUntil:0,page:'scores',away:1,home:0,armed:false,delay:0,mode:'away',online:true,selected:false,pending:false,active:false,color:'#bd8651',audio:false,volume:50,sound:{UTA:1,BOS:1},uploadTeam:'UTA'};$('log').textContent='';log('Reboot → disarmed; original WLED untouched');render();effectsControls()}
+function cancel(){stopEffectPreview();stopAudio();clearTimeout(t);if(s.pending)log('Cancelled delayed goal');if(s.active)log('Auto scene → original restored');s.pending=false;s.active=false;s.color='#bd8651'}
 function goal(home){
  if(!s.online){log('Offline: no fresh NHL goal');return}
  if(home)s.home++;else s.away++;
  log('Mock NHL '+(home?'BOS':'UTA')+' goal • UTA '+s.away+' / BOS '+s.home);
+ if(s.ddp){demoEffect(0,home,false);render();return;}
  if(!s.armed||s.pending||s.active){log('No scene: disarmed or busy');render();return}
  if(s.mode!=='both' && s.mode!==(home?'home':'away')){
    log('Goal ignored: '+(home?'BOS':'UTA')+' is not in selected celebration mode');render();return

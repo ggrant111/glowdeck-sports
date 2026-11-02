@@ -21,5 +21,5 @@ jobs:
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.4-firmware
+          name: GlowDeck-GameDay-v0.5.0-firmware
           path: .pio/build/cyd/firmware.bin

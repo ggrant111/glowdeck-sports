@@ -97,14 +97,17 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
     if (status!=HTTP_CODE_OK) { error="PBP HTTP "+String(status); http.end(); return false; }
 
     // Filtered streaming read avoids holding enormous full play objects in RAM.
-    StaticJsonDocument<512> filter;
+    StaticJsonDocument<1024> filter;
     filter["id"]=true;
+    filter["gameState"]=true;
+    filter["plays"][0]["periodDescriptor"]["periodType"]=true;
+    filter["plays"][0]["situationCode"]=true;
     filter["awayTeam"]["id"]=true;
     filter["homeTeam"]["id"]=true;
     filter["plays"][0]["eventId"]=true;
     filter["plays"][0]["typeDescKey"]=true;
     filter["plays"][0]["details"]["eventOwnerTeamId"]=true;
-    DynamicJsonDocument doc(40*1024);
+    DynamicJsonDocument doc(72*1024);
     const DeserializationError parse=deserializeJson(doc,http.getStream(),
         DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(14));
     http.end();
@@ -121,12 +124,27 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
        sample.awayId==sample.homeId) {
         error="PBP game/team mismatch"; return false;
     }
+    const char *state=doc["gameState"]|"";
+    sample.final=strcmp(state,"OFF")==0||strcmp(state,"FINAL")==0;
+    int previousAdvantage=-1;
     for(JsonObject play: doc["plays"].as<JsonArray>()) {
         const uint32_t id=play["eventId"] | 0UL;
         if(!id) continue;
         if(id>sample.latestEventId)sample.latestEventId=id;
         const char *type=play["typeDescKey"] | "";
+        gd::ExtraPlay cue;cue.id=id;bool found=false;
+        if(strcmp(type,"period-start")==0){cue.kind=gd::periodStart(play["periodDescriptor"]["periodType"]|"");found=true;}
+        else if(strcmp(type,"period-end")==0){cue.kind=gd::SportEvent::PeriodEnd;found=true;}
+        else if(strcmp(type,"game-end")==0){cue.kind=gd::SportEvent::GameEnd;found=true;}
+        int advantage=gd::advantage(play["situationCode"]|"");
+        // A burst at the first play confirming an advantage, not on every penalty.
+        if(!found && advantage>0 && previousAdvantage>=0 && advantage!=previousAdvantage){
+            cue.kind=gd::SportEvent::PowerPlay;cue.ownerId=advantage==2?sample.homeId:sample.awayId;found=true;
+        }
+        if(advantage>=0)previousAdvantage=advantage;
+        if(found){if(sample.extraCount>=64){error="Too many event cues";return false;}sample.extra[sample.extraCount++]=cue;}
         if(strcmp(type,"goal")!=0) continue;
+        if(strcmp(play["periodDescriptor"]["periodType"]|"","SO")==0)continue;
         if(sample.count>=gd::MAX_GOALS_PER_GAME) {
             error="Too many goals in play feed"; return false;
         }

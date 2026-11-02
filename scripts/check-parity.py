@@ -122,7 +122,14 @@ def main():
     require('web.on("/sound"' in read("src/main.cpp") and
             'CustomWav' in read("src/AudioPlayer.cpp"),
             "ESP32 keeps existing local sound settings and microSD custom playback")
-    print("ALL CHECKS PASSED: cross-platform parity contract v0.4.1")
+    require('ddpPacket' in read("src/DdpStream.cpp") and '4048' in read("src/DdpStream.cpp") and
+            'sender.send' in read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/DdpStream.java"),
+            "Both physical platforms send DDP on UDP 4048")
+    require('EffectsToggle' in ui and 'PREVIEW AWAY' in screen and 'effectsControls' in web,
+            "All platforms expose event effect previews")
+    require('stream_.stop()' in read("src/WledClient.cpp") and 'ddp.close()' in fire,
+            "Both physical platforms stop UDP before journal restoration")
+    print("ALL CHECKS PASSED: cross-platform parity contract v0.5.0")
 
 
 if __name__ == "__main__":

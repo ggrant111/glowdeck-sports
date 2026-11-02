@@ -99,3 +99,10 @@ Platform-specific network hosting may differ; gameplay and goal/WLED behavior re
 - [x] [Unmodified ESP32 firmware regression tests/build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) passed.
 - [ ] Actual Fire TV LAN upload + Safari pairing and TV preview verification remains open.
 - [ ] Secure ESP32 browser-to-microSD upload is an explicit follow-up, not part of this Fire TV v0.4.1 release.
+
+
+## v0.5.0 DDP event effects — 2026-11-02
+
+DDP has been moved ahead of the v1.0 NHL release gate. See [DDP_V05.md](DDP_V05.md) for the exact behavior and acceptance checklist. Fire TV, ESP32 and local browser source implement seven event patterns, opt-in whole-device streaming, event toggles and previews. Real hardware and hosted Lovable parity remain unverified. Existing Fire TV LAN audio upload and ESP32 microSD behavior are preserved.
+
+Local cross-platform static checks, 175 C++/browser pixel vectors, native simulator and nine bridge regression tests passed. Full firmware/JVM/APK CI results will be recorded on the feature PR; source checks alone are not a build or physical validation claim.

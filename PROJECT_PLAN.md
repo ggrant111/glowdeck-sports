@@ -387,3 +387,10 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 **Security:** HTTP-only over trusted LAN; no public internet, no port-forwarding. Fresh PIN and private IPv4 restrictions reduce unauthorized LAN access, but do not provide encrypted transport.
 
 **v0.4.1 field status (2026-11-01):** Code and APK release complete. Actual Safari-to-Fire TV pairing/upload, imported sound persistence and real TV-speaker preview are pending user hardware acceptance. No unsupported claim of ESP32 LAN upload parity.
+
+
+## v0.5.0 DDP event effects — 2026-11-02
+
+DDP has been moved ahead of the v1.0 NHL release gate. See [DDP_V05.md](docs/DDP_V05.md) for the exact behavior and acceptance checklist. Fire TV, ESP32 and local browser source implement seven event patterns, opt-in whole-device streaming, event toggles and previews. Real hardware and hosted Lovable parity remain unverified. Existing Fire TV LAN audio upload and ESP32 microSD behavior are preserved.
+
+Local cross-platform static checks, 175 C++/browser pixel vectors, native simulator and nine bridge regression tests passed. Full firmware/JVM/APK CI results will be recorded on the feature PR; source checks alone are not a build or physical validation claim.

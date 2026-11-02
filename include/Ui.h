@@ -20,6 +20,7 @@ struct UiState {
     bool goalBaselineReady = false;
     uint8_t goalDelay = 0;
     bool restorePending = false;
+    bool ddp=false;uint8_t effectSelection=0,effectMask=127;
     bool soundEnabled = false;
     bool soundBusy = false;
     uint8_t soundVolume = 50;
@@ -30,12 +31,13 @@ struct UiState {
     String message;
 };
 
-enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio };
+enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects };
 enum class ActionType : uint8_t {
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
     CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus,
     AudioToggle, AudioVolumeDown, AudioVolumeUp, AudioAwayNext, AudioHomeNext,
+    EffectsToggle, EffectsNext, EffectsEnable, EffectsAway, EffectsHome,
     AudioPreviewAway, AudioPreviewHome
 };
 struct UiAction {
@@ -60,5 +62,6 @@ private:
     void lights(const UiState &state);
     void setup(const UiState &state);
     void audio(const UiState &state);
+    void effects(const UiState &state);
     void button(int x, int y, int w, int h, const String &label, uint16_t color);
 };
