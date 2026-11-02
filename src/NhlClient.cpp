@@ -44,7 +44,8 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error, uint8_t dayOffset) {
         return false;
     }
     // Filter + stream parsing dramatically reduces memory use vs a full JSON response.
-    StaticJsonDocument<1536> filter;
+    DynamicJsonDocument filter(1536);
+    if(!filter.capacity()){error="NHL filter allocation failed";http.end();return false;}
     filter["currentDate"] = true;
     filter["games"][0]["startTimeUTC"] = true;
     filter["games"][0]["gameScheduleState"] = true;
@@ -71,7 +72,9 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error, uint8_t dayOffset) {
         error = "NHL response missing games";
         return false;
     }
-    gd::Scoreboard temp;
+    // Only loopTask calls this client. Commit scratch data only after successful parsing.
+    static gd::Scoreboard temp;
+    temp.count=0;temp.valid=false;temp.date[0]=0;
     copy(temp.date, sizeof(temp.date), doc["currentDate"] | "");
     for (JsonObject item : doc["games"].as<JsonArray>()) {
         if (temp.count >= gd::MAX_GAMES) break;
@@ -116,7 +119,8 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error, gd:
     if (status!=HTTP_CODE_OK) { error="PBP HTTP "+String(status); http.end(); return false; }
 
     // Filtered streaming read avoids holding enormous full play objects in RAM.
-    StaticJsonDocument<2048> filter;
+    DynamicJsonDocument filter(2048);
+    if(!filter.capacity()){error="PBP filter allocation failed";http.end();return false;}
     filter["startTimeUTC"]=true; filter["gameScheduleState"]=true;
     filter["awayTeam"]["abbrev"]=true;filter["homeTeam"]["abbrev"]=true;
     filter["awayTeam"]["score"]=true;filter["homeTeam"]["score"]=true;
@@ -144,7 +148,8 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error, gd:
        !doc["homeTeam"]["id"].is<int>()) {
         error="PBP missing required fields"; return false;
     }
-    gd::GoalFeed sample;
+    static gd::GoalFeed sample;
+    sample.count=0;sample.extraCount=0;sample.latestEventId=0;sample.valid=false;
     sample.gameId=doc["id"].as<uint32_t>();
     sample.awayId=doc["awayTeam"]["id"].as<uint32_t>();
     sample.homeId=doc["homeTeam"]["id"].as<uint32_t>();
