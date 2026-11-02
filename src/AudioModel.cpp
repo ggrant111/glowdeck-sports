@@ -5,12 +5,12 @@ SoundKind validatedSound(uint8_t raw) { return raw<=4 ? static_cast<SoundKind>(r
 bool validClipName(const char* name) {
     if (!name) return false;
     size_t n=0;
-    while(name[n] && n<32) {
+    while(n<32 && name[n]) {
         const char c=name[n];
         if(!((c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='-'))return false;
         ++n;
     }
-    return n>0 && n<=24 && name[n]=='\0';
+    return n>0 && n<=24 && n<32 && name[n]=='\0';
 }
 static uint16_t u16(const uint8_t*p) {return (uint16_t)p[0]|(uint16_t(p[1])<<8);}
 static uint32_t u32(const uint8_t*p) {return uint32_t(p[0])|(uint32_t(p[1])<<8)|(uint32_t(p[2])<<16)|(uint32_t(p[3])<<24);}
