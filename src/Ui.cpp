@@ -96,7 +96,8 @@ void Ui::gameday(const UiState &state) {
     if (!game) {
         tft_.setTextColor(MUTED, BG);
         tft_.drawCentreString("Choose a game in SCORES", 160, 66, 2);
-        tft_.drawCentreString("Then choose a WLED in LIGHTS", 160, 102, 2);
+        tft_.drawCentreString("Then choose outputs in FOLLOWING", 160, 110, 2);
+        button(196,82,114,21,"FOLLOWING",TEAL);
         return;
     }
     tft_.setTextColor(FG, BG);
@@ -105,6 +106,7 @@ void Ui::gameday(const UiState &state) {
     tft_.setTextColor(MUTED, BG);
     tft_.drawCentreString(String(gd::gameStateText(*game))+(gd::isUpcoming(*game)?" "+localStart(game->startTime,state.hour24):String("")), 160, 73, 2);
     tft_.drawString("CELEBRATE", 10, 87, 2);
+    button(196,82,114,21,"FOLLOWING",TEAL);
     button(8, 105, 96, 29, game->away,
         state.celebrationMode == gd::CelebrationMode::Away ? TEAL : CARD);
     button(111, 105, 96, 29, game->home,
@@ -247,7 +249,8 @@ String Ui::renderKey(const UiState &s) const {
     return key;
 }
 void Ui::draw(const UiState &state) {
-    const String key = renderKey(state);
+    String key = renderKey(state);
+    if(state.following){key+=state.following->message+String(state.following->running)+String(state.following->count);for(unsigned i=0;i<state.following->count;++i){auto &f=state.following->games[i];key+=String(f.game.id)+String(f.display)+f.status+String(f.game.awayScore)+String(f.game.homeScore);}}
     if (rendered_ && key == lastRenderKey_) return;
     lastRenderKey_ = key;
     rendered_ = true;
@@ -260,6 +263,13 @@ void Ui::draw(const UiState &state) {
         case Page::Setup: setup(state); break;
         case Page::Audio: audio(state); break;
         case Page::Effects: effects(state);break;
+        case Page::Following: {
+            if(state.following){int y=38;for(unsigned i=0;i<state.following->count;++i){auto &f=state.following->games[i];if(!f.display)continue;
+                tft_.setTextColor(FG,BG);tft_.drawString(String(f.game.away)+" "+f.game.awayScore+" - "+f.game.homeScore+" "+f.game.home,8,y,2);
+                tft_.drawString(f.status.substring(0,38),8,y+15,1);y+=31;
+            }}
+            button(4,168,100,30,"FOLLOW",TEAL);button(108,168,100,30,"START ALL",TEAL);button(212,168,104,30,"STOP ALL",CARD);break;
+        }
     }
     footer();
     // Serial logs provide full error messages; short banner here for feedback.
@@ -278,6 +288,7 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         else page_ = Page::Audio;
         return {};
     }
+    if(page_==Page::Following){if(y>=168&&y<198)return {x<108?ActionType::FollowAdd:x<212?ActionType::FollowStart:ActionType::FollowStop};return {};}
     if (page_ == Page::Scores) {
         if(y>=35&&y<57&&x<190)return {ActionType::ScheduleDay};
         if (y >= 35 && y < 56) {
@@ -290,6 +301,7 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             if (row < 4 && idx < state.scoreboard->count) return {ActionType::SelectGame, idx};
         }
     } else if (page_ == Page::GameDay) {
+        if(x>=196&&y>=82&&y<103){page_=Page::Following;return {};}
         if (y >= 105 && y < 137) {
             if (x < 107) return {ActionType::CelebrateAway};
             if (x < 211) return {ActionType::CelebrateHome};

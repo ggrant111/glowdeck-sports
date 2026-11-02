@@ -5,6 +5,7 @@
 #include <WiFiManager.h>
 #include <Preferences.h>
 #include "GoalEngine.h"
+#include "FollowManager.h"
 #include "AudioPlayer.h"
 #include <SPI.h>
 #include <XPT2046_Touchscreen.h>
@@ -31,6 +32,7 @@ Ui ui;
 UiState uiState;
 NhlClient nhl;
 WledClient wled;
+FollowManager following;
 gd::GoalEngine goals;
 uint8_t effectMask=127,effectSelection=0;
 bool effectPreview=false;
@@ -169,6 +171,7 @@ void loadGameSettings() {
 // Manual actions restore the automatic scene FIRST, rather than silently
 // destroying the saved original state. No manual mutation if restore fails.
 bool clearAutoBeforeManual() {
+    if(following.busy()){banner("Stop followed games / wait for restoration first");return false;}
     goals.disarm();effectPreview=false;resumePending=false;saveResume();
     if (!wled.autoRestorePending()) return true;
     String err;
@@ -267,6 +270,7 @@ void saveResume() {
     p.end();
 }
 void toggleArm() {
+    if(following.busy()){banner("Stop followed games first");return;}
     if(effectPreview){banner("Finish effect preview first");return;}
     if (resumePending) {resumePending=false;saveResume();banner("Reboot resume cancelled");return;}
     if (goals.armed()) {
@@ -294,6 +298,7 @@ void toggleArm() {
 }
 
 void effectAction(int action,bool home=false){
+    if(following.busy()){banner("Stop followed games first");return;}
     if(goals.armed()||effectPreview||wled.autoRestorePending()){banner("Stop / restore before changing effects");return;}
     if(action==0)wled.ddpEnabled=!wled.ddpEnabled;
     else if(action==1)effectSelection=(effectSelection+1)%7;
@@ -325,9 +330,40 @@ String htmlEscape(const String &s) {
     return out;
 }
 void redirectHome() { web.sendHeader("Location", "/", true); web.send(303, "text/plain", "Redirecting"); }
+bool followSelected(){
+    if(following.busy()){banner("Stop followed games before editing");return false;}
+    const gd::Game *g=selectedGame();if(!g){banner("Select a game first");return false;}
+    for(unsigned i=0;i<following.count;++i)if(following.games[i].game.id==g->id){banner("Already followed");return false;}
+    if(following.count==gd::FOLLOW_LIMIT){banner("Four-game limit; remove a game first");return false;}
+    auto &f=following.games[following.count++];f=FollowGame();f.game=*g;f.mode=goals.mode();f.delay=goals.delay();f.ddp=wled.ddpEnabled;f.mask=effectMask;
+    if(!following.save())banner("Could not save following preferences");else banner("Game followed; configure outputs on local web page");return true;
+}
+void startFollowing(){
+    if(goals.armed()||effectPreview||wled.autoRestorePending()){banner("Stop single-game monitoring / restore first");return;}
+    resumePending=false;resumeEnabled=false;saveResume();String err;
+    if(!following.start(err))banner(err);else banner("Followed games started");
+}
+String followingHtml(){
+    String p="<section><h2>Followed games (v0.6)</h2><p>Up to four games, two independent WLED targets. Settings save; start after reboot. Sound also requires the SOUND master switch. Stop before editing.</p><p>"+htmlEscape(following.message)+"</p>";
+    p+="<form method='post' action='/follow'><button name='op' value='add'>Follow selected game</button><button name='op' value='start'>Start all</button><button name='op' value='stop'>Stop all</button></form>";
+    p+="<form method='post' action='/follow'><input type='hidden' name='op' value='targets'>";
+    for(unsigned t=0;t<2;++t)p+=String(t?"B":"A")+" <input name='t"+t+"' value='"+htmlEscape(following.targetIp[t])+"' placeholder='WLED IPv4'>";
+    p+="<button>Save targets</button></form>";
+    for(unsigned i=0;i<following.count;++i){auto &f=following.games[i];
+        p+="<h3>"+String(f.game.away)+" @ "+f.game.home+"</h3><p>"+htmlEscape(f.status)+"</p><form method='post' action='/follow'><input type='hidden' name='i' value='"+i+"'>";
+        const char *names[]={"display","sound","a","b","ddp"};const char *labels[]={"Device display","Goal sound","Target A","Target B","DDP effects"};
+        bool enabled[]={f.display,f.sound,bool(f.targets&1),bool(f.targets&2),f.ddp};
+        for(int n=0;n<5;++n)p+="<label><input type='checkbox' name='"+String(names[n])+"'"+(enabled[n]?" checked":"")+">"+labels[n]+"</label> ";
+        p+="<p>Celebrate <select name='mode'>";for(int m=0;m<3;++m)p+="<option value='"+String(m)+"'"+(int(f.mode)==m?" selected":"")+">"+gd::celebrationName(gd::validatedMode(m))+"</option>";
+        p+="</select> Delay <input type='number' min='0' max='90' name='delay' value='"+String(f.delay)+"'> seconds</p>";
+        for(unsigned e=0;e<7;++e)p+="<label><input type='checkbox' name='e"+String(e)+"'"+((f.mask&(1<<e))?" checked":"")+">"+gd::eventName(gd::SportEvent(e))+"</label> ";
+        p+="<button name='op' value='save'>Save game</button><button name='op' value='remove'>Unfollow</button></form>";
+    }return p+"</section>";
+}
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
-body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.4</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.6</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+    page += followingHtml();
     page += "<section><h2>Schedule: next 7 days</h2>";
     for(int day=0;day<7;++day)page+="<form method='post' action='/schedule'><button name='day' value='"+String(day)+"'>"+(day==0?String("Today"):day==1?String("Tomorrow"):String("Day +")+day)+"</button></form>";
     page+="<p>Schedule date: "+String(scores.date)+". Times use configured timezone (default UTC).</p><form method='post' action='/timezone'><select name='tz'><option value='UTC0'>UTC</option><option value='MST7MDT,M3.2.0,M11.1.0'>Mountain</option><option value='PST8PDT,M3.2.0,M11.1.0'>Pacific</option><option value='CST6CDT,M3.2.0,M11.1.0'>Central</option><option value='EST5EDT,M3.2.0,M11.1.0'>Eastern</option></select><button>Save timezone</button></form>";
@@ -504,6 +540,9 @@ void doAction(const UiAction &a) {
       case ActionType::AudioVolumeUp: adjustVolume(10); break;
       case ActionType::AudioAwayNext: cycleSound(false); break;
       case ActionType::AudioHomeNext: cycleSound(true); break;
+      case ActionType::FollowAdd: followSelected();break;
+      case ActionType::FollowStart: startFollowing();break;
+      case ActionType::FollowStop: following.stop();audio.stop();break;
       case ActionType::EffectsToggle: effectAction(0);break;
       case ActionType::EffectsNext: effectAction(1);break;
       case ActionType::EffectsEnable: effectAction(2);break;
@@ -518,6 +557,19 @@ void doAction(const UiAction &a) {
 void setupWeb() {
     if (servicesStarted) return;
     web.on("/", HTTP_GET, webHome);
+    web.on("/follow",HTTP_POST,[]{
+        String op=web.arg("op");
+        if(op=="stop"){following.stop();audio.stop();banner("Following stopped; restoring");}
+        else if(op=="start")startFollowing();
+        else if(following.busy())banner("Stop / restore before editing followed games");
+        else if(op=="add")followSelected();
+        else if(op=="targets"){following.targetIp[0]=web.arg("t0");following.targetIp[1]=web.arg("t1");if(!following.save())banner("Save failed");}
+        else {int i=web.arg("i").toInt();if(i>=0&&i<int(following.count)){
+            if(op=="remove"){for(unsigned n=i+1;n<following.count;++n)following.games[n-1]=following.games[n];--following.count;}
+            else if(op=="save"){auto &f=following.games[i];f.display=web.hasArg("display");f.sound=web.hasArg("sound");f.targets=(web.hasArg("a")?1:0)|(web.hasArg("b")?2:0);f.ddp=web.hasArg("ddp");f.mode=gd::validatedMode(web.arg("mode").toInt());f.delay=constrain(web.arg("delay").toInt(),0,90);f.mask=0;for(int e=0;e<7;++e)if(web.hasArg("e"+String(e)))f.mask|=1<<e;}
+            if(!following.save())banner("Save failed");
+        }}redraw();redirectHome();
+    });
     web.on("/schedule",HTTP_POST,[]{scheduleDay=constrain(web.arg("day").toInt(),0,6);uiState.gamePage=0;refreshNhl();redirectHome();});
     web.on("/resume",HTTP_POST,[]{resumeEnabled=!resumeEnabled;if(!resumeEnabled)resumePending=false;saveResume();redirectHome();});
     web.on("/timeformat",HTTP_POST,[]{
@@ -676,7 +728,8 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.5.4 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.6.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    uiState.following=&following;
     uiState.scoreboard = &scores;
     uiState.leds = &wled;
     ui.begin();
@@ -696,7 +749,7 @@ void setup() {
             prefs.end();
         }
     }
-    wled.begin();
+    wled.begin();following.begin();
     if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
     configTime(0,0,"pool.ntp.org","time.nist.gov");
     loadGameSettings();
@@ -721,7 +774,15 @@ void loop() {
     restoreTouchBus();
     pollTouch();
     const bool online = WiFi.status() == WL_CONNECTED;
-    if(resumePending && online) {
+    following.tick(nhl,online);
+    if(!audio.busy()) {gd::QueuedReaction event;if(following.takeSound(event)&&soundEnabled){
+        const auto &g=following.games[event.game].game;String code=event.home?g.home:g.away;
+        gd::AudioChoice choice;Preferences p;if(p.begin("gd-sound",true)){
+            choice.kind=gd::validatedSound(p.getUChar(("k"+code).c_str(),1));
+            String clip=p.getString(("f"+code).c_str(),"GOAL");if(gd::validClipName(clip.c_str()))snprintf(choice.clip,sizeof(choice.clip),"%s",clip.c_str());p.end();}
+        trySound(choice);
+    }}
+    if(resumePending && online && !following.busy()) {
         static uint32_t lastResume=0;
         if(!lastResume || millis()-lastResume>30000) {
             lastResume=millis(); static gd::GoalFeed feed;String err;

@@ -12,6 +12,9 @@ struct LedDevice {
 class WledClient {
 public:
     void begin();
+    void setJournalNamespace(const char *name){journalNamespace_=name;}
+    bool configureTarget(const String &ip);
+    bool continueAutoEvent(size_t index,uint32_t rgb,gd::SportEvent kind,String &error);
     void discover();
     bool scanOverflow=false;
     bool add(const String &host, String &error);
@@ -29,6 +32,7 @@ public:
     size_t size() const { return count_; }
     const LedDevice& at(size_t i) const { return devices_[i]; }
 private:
+    const char *journalNamespace_="gd-auto";
     DdpStream stream_;
     gd::SportEvent effect_=gd::SportEvent::Goal;
     LedDevice devices_[gd::MAX_LEDS];

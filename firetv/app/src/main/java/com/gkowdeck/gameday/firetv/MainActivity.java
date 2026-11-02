@@ -60,7 +60,7 @@ public final class MainActivity extends Activity {
         if(!resumed)return;
         long now=System.currentTimeMillis();
         if(now-lastScoresMs>60000)refreshScores(false);
-        String current=monitorStatus();
+        String current=monitorStatus()+FollowService.status+java.util.Arrays.toString(FollowService.gameStatus);
         if(!current.equals(serviceState)){serviceState=current;render();}
         ui.postDelayed(this,1000);
     }};
@@ -82,8 +82,9 @@ public final class MainActivity extends Activity {
         }));
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.5.2 started. Local iPhone audio management is available.");
+        log("GameDay Fire TV v0.6.0 started. Local iPhone audio management is available.");
         buildShell();render();
+        if(FollowService.hasRecovery(this)&&!FollowService.isBusy())followCommand(FollowService.RECOVER);
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
     @Override protected void onResume(){
@@ -185,7 +186,40 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(60));lp.setMargins(0,0,0,dp(8));body.addView(b,lp);
         }
     }
+    private FollowConfig followConfig(){try{return FollowConfig.parse(getSharedPreferences("gameday-follow",0).getString("config","{}"));}catch(Exception e){return new FollowConfig();}}
+    private boolean followLocked(){return FollowService.isBusy()||FollowService.hasRecovery(this)||GameDayService.isRunning()||GameDayService.isStopping()||previewActive||hasJournal();}
+    private void saveFollow(FollowConfig c){try{if(!getSharedPreferences("gameday-follow",0).edit().putString("config",c.json()).commit())log("Could not save followed games");}catch(Exception e){log(e.getMessage());}render();}
+    private void followCommand(String command){
+        if(FollowService.START.equals(command)&&followLocked()){log("Stop monitoring and restore lights first");render();return;}
+        Intent i=new Intent(this,FollowService.class).setAction(command);if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);render();
+    }
+    private void pageFollowing(){
+        FollowConfig c=followConfig();heading("FOLLOWED GAMES • v0.6");subtitle(FollowService.status);
+        subtitle("Four games / two WLED targets. Stop before editing. Saved preferences start disarmed. Goal sound also requires SOUND enabled.");
+        LinearLayout controls=row();buttons(controls,action("FOLLOW SELECTED",false,()->{
+            if(followLocked()){log("Stop and restore first");return;}if(selected==null){log("Select a game first");return;}
+            for(FollowConfig.Game g:c.games)if(g.id==selected.id){log("Already followed");return;}
+            if(c.games.size()==4){log("Four-game limit: unfollow a game first");return;}
+            FollowConfig.Game g=new FollowConfig.Game();g.id=selected.id;g.away=selected.away;g.home=selected.home;g.mode=celebrationMode;g.delay=delaySec;g.ddp=prefs.getBoolean("ddp",false);g.mask=prefs.getInt("eventMask",127);c.games.add(g);saveFollow(c);
+        }),action("START ALL",true,()->followCommand(FollowService.START)),action("STOP / RECOVER ALL",false,()->followCommand(FollowService.isBusy()?FollowService.STOP:FollowService.RECOVER)));body.addView(controls);
+        for(int t=0;t<2;t++){final int target=t;LinearLayout r=row();buttons(r,action("TARGET "+(t==0?"A":"B")+": "+c.targets[t]+" • USE SAVED WLED IP",false,()->{
+            if(followLocked()){log("Stop and restore first");return;}if(!AddressValidator.isPrivateLanIpv4(wledIp)){log("Save a valid WLED IP in LIGHTS");return;}c.targets[target]=wledIp;saveFollow(c);
+        }));body.addView(r);}
+        for(int n=0;n<c.games.size();n++){final int index=n;FollowConfig.Game g=c.games.get(n);
+            card(g.away+" @ "+g.home,(g.display?FollowService.gameStatus[n]:"Display disabled")+" • "+g.id);
+            LinearLayout outputs=row();buttons(outputs,
+                action("DISPLAY: "+g.display,g.display,()->{if(!followLocked()){g.display=!g.display;saveFollow(c);}}),
+                action("SOUND: "+g.sound,g.sound,()->{if(!followLocked()){g.sound=!g.sound;saveFollow(c);}}),
+                action("LIGHTS: "+new String[]{"NONE","A","B","A+B"}[g.outputs],g.outputs>0,()->{if(!followLocked()){g.outputs=(g.outputs+1)%4;saveFollow(c);}}));body.addView(outputs);
+            LinearLayout opts=row();buttons(opts,action(CelebrationSelection.label(g.mode,g.away,g.home),false,()->{if(!followLocked()){g.mode=(g.mode+1)%3;saveFollow(c);}}),
+                action("DELAY: "+g.delay+"s",false,()->{if(!followLocked()){g.delay=(g.delay+15)%105;saveFollow(c);}}),
+                action(g.ddp?"DDP EFFECTS":"SOLID GOALS",g.ddp,()->{if(!followLocked()){g.ddp=!g.ddp;saveFollow(c);}}),
+                action("UNFOLLOW",false,()->{if(!followLocked()){c.games.remove(index);saveFollow(c);}}));body.addView(opts);
+            if(g.ddp)for(int first=0;first<7;first+=3){LinearLayout effects=row();for(int e=first;e<Math.min(first+3,7);e++){final int bit=1<<e;effects.addView(action(EventEffects.NAMES[e]+((g.mask&bit)!=0?" ON":" OFF"),(g.mask&bit)!=0,()->{if(!followLocked()){g.mask^=bit;saveFollow(c);}}),new LinearLayout.LayoutParams(0,dp(60),1));}body.addView(effects);}
+        }
+    }
     private void pageGame(){
+        pageFollowing();
         heading("GAME / PLAY-BY-PLAY");
         LinearLayout resume=row();buttons(resume,action("RESUME AFTER REBOOT: "+(prefs.getBoolean("resumeEnabled",false)?"ON":"OFF"),prefs.getBoolean("resumeEnabled",false),()->{
             prefs.edit().putBoolean("resumeEnabled",!prefs.getBoolean("resumeEnabled",false)).apply();render();}));body.addView(resume);
@@ -435,7 +469,7 @@ public final class MainActivity extends Activity {
         });
     }
     private void restoreWled(){
-        if(GameDayService.isRunning()){log("Monitoring active. STOP first, then restore if needed.");render();return;}
+        if(GameDayService.isRunning()||FollowService.isBusy()||FollowService.hasRecovery(this)){log("Monitoring active. STOP first, then restore if needed.");render();return;}
         if(!hasJournal()){previewActive=false;log("No outstanding restore journal");render();return;}
         if(restoreBusy)return;
         restoreBusy=true;
@@ -461,7 +495,7 @@ public final class MainActivity extends Activity {
         return getSharedPreferences("gameday-monitor",MODE_PRIVATE).getString("detail","No active session");
     }
     private boolean denyChangeWhileMonitoring(){
-        if(!GameDayService.isRunning() && !GameDayService.isStopping())return false;
+        if(!GameDayService.isRunning() && !GameDayService.isStopping() && !FollowService.isBusy() && !FollowService.hasRecovery(this))return false;
         log("Stop background monitoring before changing a game, delay, WLED IP or manual scene");render();return true;
     }
     private void disarm(String reason){
@@ -472,7 +506,7 @@ public final class MainActivity extends Activity {
         render();
     }
     private void arm(){
-        if(GameDayService.isRunning()||GameDayService.isStopping())return;
+        if(GameDayService.isRunning()||GameDayService.isStopping()||FollowService.isBusy()||FollowService.hasRecovery(this))return;
         if(selected==null||(!selected.live()&&!selected.upcoming())){log("Select an upcoming or LIVE NHL game before monitoring");render();return;}
         if(!wledConnected||!AddressValidator.isPrivateLanIpv4(wledIp)||hasJournal()||previewActive){
             log("Connect a valid WLED device; finish any pending scene restore first");render();return;

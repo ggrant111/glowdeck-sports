@@ -1,3 +1,7 @@
+## v0.6 — multiple followed games
+
+ESP32 and Fire TV support **four followed games** and **two WLED targets**. Each game has independent device-display, goal-sound, target A/B/both/none, team-side, delay, and DDP-event settings. See [v0.6 setup and acceptance checks](docs/V0.6-FOLLOWING.md).
+
 # GlowDeck GameDay v0.4 — Goal lights + built-in/custom audio (hardware testing pending)
 
 **ESP32-2432S028R (2.8" CYD) • 320×240 landscape touchscreen • PlatformIO**

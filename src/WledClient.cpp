@@ -139,13 +139,13 @@ bool WledClient::setPower(size_t index, bool on, String &error) {
 // Fail closed: never issue an automatic effect without an NVS snapshot first.
 void WledClient::loadAutoBackup() {
     Preferences p;
-    p.begin("gd-auto", true);
+    p.begin(journalNamespace_, true);
     autoBackup_ = p.getString("backup", "");
     p.end();
 }
 bool WledClient::persistAutoBackup(const String &value) {
     Preferences p;
-    if (!p.begin("gd-auto", false)) return false;
+    if (!p.begin(journalNamespace_, false)) return false;
     const bool success = value.isEmpty() ? p.remove("backup") :
         p.putString("backup", value) == value.length();
     p.end();
@@ -245,5 +245,26 @@ bool WledClient::restoreAuto(String &error) {
         error = "WLED restored; journal cleanup failed";
         return false;
     }
+    return true;
+}
+
+bool WledClient::configureTarget(const String &ip){
+    IPAddress address;if(autoRestorePending()||!parseIp(ip,address))return false;
+    count_=1;devices_[0].ip=ip;devices_[0].name=ip;devices_[0].online=false;return true;
+}
+bool WledClient::continueAutoEvent(size_t index,uint32_t rgb,gd::SportEvent kind,String &error){
+    if(index>=count_||autoBackup_.isEmpty()){error="Missing sequence journal";return false;}
+    DynamicJsonDocument saved(2304);
+    if(deserializeJson(saved,autoBackup_)||saved["ip"].as<String>()!=devices_[index].ip){error="Sequence target mismatch";return false;}
+    stream_.stop();effect_=kind;
+    if(!ddpEnabled){String clear="{\"live\":false}",reply;
+        if(!request(devices_[index].ip,"/json/state",&clear,reply)){error="Realtime release failed";return false;}
+        return applyColor(index,rgb,error);}
+    String raw;if(!request(devices_[index].ip,"/json/info",nullptr,raw)){error="WLED info failed";return false;}
+    DynamicJsonDocument info(4096);if(deserializeJson(info,raw)){error="Invalid WLED info";return false;}
+    int count=info["leds"]["count"]|0;
+    if(count<1||count>gd::DDP_MAX_PIXELS){error="DDP requires 1-600 LEDs";return false;}
+    String body="{\"on\":true,\"bri\":160,\"tt\":0,\"udpn\":{\"nn\":true}}",reply;
+    if(!request(devices_[index].ip,"/json/state",&body,reply)||!stream_.start(devices_[index].ip,count,kind,rgb)){error="Sequence failed; restore pending";return false;}
     return true;
 }

@@ -80,8 +80,17 @@ void test_ddp_goal_only_keeps_final_goal_window();
 void test_pregame_start_and_goal_baseline();
 void test_pregame_outage_cancel_and_missing_board();
 void test_pregame_never_triggers_and_postponed_waits();
+void test_follow_priority_fifo();
+void test_follow_expiry_cancel_wrap();
+void test_follow_overflow_priority();
+void test_follow_independent_games();
 int main(int, char**) {
     UNITY_BEGIN();
+    RUN_TEST(test_follow_priority_fifo);
+    RUN_TEST(test_follow_expiry_cancel_wrap);
+    RUN_TEST(test_follow_overflow_priority);
+    RUN_TEST(test_follow_independent_games);
+
     RUN_TEST(test_pregame_start_and_goal_baseline);
     RUN_TEST(test_pregame_outage_cancel_and_missing_board);
     RUN_TEST(test_pregame_never_triggers_and_postponed_waits);

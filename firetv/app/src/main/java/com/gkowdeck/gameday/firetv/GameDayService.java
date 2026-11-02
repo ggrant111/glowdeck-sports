@@ -106,6 +106,7 @@ public final class GameDayService extends Service {
         }
         if (!START.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
         if (running || stopping) return START_NOT_STICKY;
+        if(FollowService.isBusy()||FollowService.hasRecovery(this)){stopSelf();return START_NOT_STICKY;}
         running = true;
         gameId = intent.getLongExtra("gameId", 0);
         away = intent.getStringExtra("away"); home = intent.getStringExtra("home");

@@ -2,9 +2,11 @@
 #include "GameCore.h"
 #include "AudioModel.h"
 #include "WledClient.h"
+#include "FollowManager.h"
 #include <TFT_eSPI.h>
 
 struct UiState {
+    const FollowManager *following=nullptr;
     const gd::Scoreboard *scoreboard = nullptr;
     const WledClient *leds = nullptr;
     uint32_t selectedGameId = 0;
@@ -37,9 +39,9 @@ struct UiState {
     String message;
 };
 
-enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects };
+enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects, Following };
 enum class ActionType : uint8_t {
-    PreviousLeds, NextLeds, ScheduleDay, ToggleResume,
+    FollowAdd, FollowStart, FollowStop, PreviousLeds, NextLeds, ScheduleDay, ToggleResume,
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
     CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus,

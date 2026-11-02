@@ -292,7 +292,7 @@ final class LanSoundServer {
             }catch(Exception ex){fail(out,500,"Could not read sound settings");}
             return;
         }
-        if(GameDayService.isRunning()||GameDayService.isStopping()){
+        if(GameDayService.isRunning()||GameDayService.isStopping()||FollowService.isBusy()||FollowService.hasRecovery(context)){
             fail(out,409,"STOP BACKGROUND MONITOR before changing or previewing sounds");return;
         }
         if(method.equals("PUT")&&path.startsWith("/api/upload/")){
@@ -346,7 +346,7 @@ final class LanSoundServer {
         JSONObject result=new JSONObject();
         result.put("enabled",prefs.getBoolean("enabled",false));
         result.put("volume",AudioProfile.volume(prefs.getInt("volume",50)));
-        result.put("armed",GameDayService.isRunning());
+        result.put("armed",GameDayService.isRunning()||FollowService.isBusy());
         JSONArray teams=new JSONArray();
         File folder=GameAudio.audioDirectory(context);
         for(String team:LanSoundProtocol.TEAMS){
