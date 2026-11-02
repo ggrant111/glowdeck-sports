@@ -49,6 +49,9 @@ final class LanSoundProtocol {
 
     static boolean canonicalUpload(byte[] header,int fileBytes) {
         int data=AudioProfile.wavBytes(header,fileBytes);
-        return data>0 && fileBytes==44+data;
+        if(data<=0 || fileBytes!=44+data || header==null || header.length<44)return false;
+        long riffSize=(header[4]&255L)|((header[5]&255L)<<8)
+            |((header[6]&255L)<<16)|((header[7]&255L)<<24);
+        return riffSize==(long)fileBytes-8;
     }
 }
