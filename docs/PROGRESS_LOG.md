@@ -30,6 +30,11 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Plan changes / decisions:** Keep v0.1 hardware acceptance open, advance v0.2 software/CI gates. Do not auto-arm after reboot, use only segment 0 and static color until real hardware validation.
 - **Next actions:** Flash and accept v0.1/v0.2 when CYD arrives. Next software sprint: v0.3 NHL event-ID source, power-play and intermission policy behind safety gates.
 
+### 2026-11-01 — v0.2 final main-branch build verified
+
+- Added explicit WLED segment 0 enable and effect unfreeze before a solid goal color, with prior state still journaled for recovery.
+- [GitHub Actions run 41368809822](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368809822) PASSED on `main`: 17/17 tests, CYD compile, firmware artifact uploaded. No physical device acceptance yet.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

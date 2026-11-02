@@ -117,7 +117,7 @@ The **week numbers are sequence targets, not calendar commitments**; advance onl
 - [x] Added hardware-free four-page browser mock at `simulator/web/index.html`.
 - [ ] Hardware gate: successful automatic WLED capture/apply/restore, UI touch controls and power-cycle recovery on a physical ESP32-2432S028R.
 
-**Sprint 2 evidence:** [Successful CI run](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335) on 2026-11-01. See [docs/SPRINT2.md](docs/SPRINT2.md) and [docs/VALIDATION_V02.md](docs/VALIDATION_V02.md). **Physical acceptance remains blocked solely by unavailable hardware and unverified LAN/API integrations.**
+**Latest main-branch verification:** [CI run 41368809822](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368809822) — 17/17 native tests, ESP32 firmware build and artifact upload passed after final WLED segment-enable fix.\n\n**Sprint 2 evidence:** [Successful CI run](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335) on 2026-11-01. See [docs/SPRINT2.md](docs/SPRINT2.md) and [docs/VALIDATION_V02.md](docs/VALIDATION_V02.md). **Physical acceptance remains blocked solely by unavailable hardware and unverified LAN/API integrations.**
 
 ### Sprint 3 — NHL event policies
 

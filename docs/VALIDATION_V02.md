@@ -9,3 +9,5 @@
 - Browser UI: preview at `simulator/web/index.html`; mock inputs only, not actual firmware pixels or timing.
 
 See `docs/SPRINT2.md` for hardware matrix and `docs/VALIDATION.md` for retained v0.1 baseline evidence.
+
+- PASS (latest `main`): [CI run 41368809822](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368809822) — 17/17 Unity cases, CYD firmware compile, artifact upload. Includes explicit WLED segment-0 enable/unfreeze fix. No hardware testing claimed.
