@@ -1,3 +1,7 @@
+## v0.7 — page navigation
+
+Open the ESP32 local address and use Games, Following, Lights, Sound or Setup. Saves return to the current page. On Fire TV, use the new FOLLOWING tab for multi-game controls. Monitoring settings from v0.6 are retained.
+
 ## v0.6 — multiple followed games
 
 ESP32 and Fire TV support **four followed games** and **two WLED targets**. Each game has independent device-display, goal-sound, target A/B/both/none, team-side, delay, and DDP-event settings. See [v0.6 setup and acceptance checks](docs/V0.6-FOLLOWING.md).

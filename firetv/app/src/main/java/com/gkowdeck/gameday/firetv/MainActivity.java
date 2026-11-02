@@ -82,7 +82,7 @@ public final class MainActivity extends Activity {
         }));
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.6.0 started. Local iPhone audio management is available.");
+        log("GameDay Fire TV v0.7.0 started. Local iPhone audio management is available.");
         buildShell();render();
         if(FollowService.hasRecovery(this)&&!FollowService.isBusy())followCommand(FollowService.RECOVER);
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
@@ -163,10 +163,10 @@ public final class MainActivity extends Activity {
         if(focus!=null&&focus.getTag() instanceof String)focusedTag=(String)focus.getTag();
         nav.removeAllViews();body.removeAllViews();
         status.setText("NHL: "+fetchStatus+"   |   MONITOR: "+monitorStatus());
-        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","SOUND","LOG / HELP"};
+        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","SOUND","LOG / HELP","FOLLOWING"};
         for(int i=0;i<names.length;i++){final int idx=i;Button b=action(names[i],page==i,()->{page=idx;render();});
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(57),1);p.setMargins(0,0,dp(9),0);nav.addView(b,p);}
-        switch(page){case 0:pageScores();break;case 1:pageGame();break;case 2:pageLights();break;case 3:pageAudio();break;default:pageLog();break;}
+        switch(page){case 0:pageScores();break;case 1:pageGame();break;case 2:pageLights();break;case 3:pageAudio();break;case 5:pageFollowing();break;default:pageLog();break;}
         if(focusedTag!=null){View saved=root.findViewWithTag(focusedTag);if(saved!=null && saved.isFocusable()){saved.requestFocus();return;}}
         if(getCurrentFocus()==null && nav.getChildCount()>0)nav.getChildAt(page).requestFocus();
     }
@@ -194,7 +194,7 @@ public final class MainActivity extends Activity {
         Intent i=new Intent(this,FollowService.class).setAction(command);if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);render();
     }
     private void pageFollowing(){
-        FollowConfig c=followConfig();heading("FOLLOWED GAMES • v0.6");subtitle(FollowService.status);
+        FollowConfig c=followConfig();heading("FOLLOWED GAMES • v0.7");subtitle(FollowService.status);
         subtitle("Four games / two WLED targets. Stop before editing. Saved preferences start disarmed. Goal sound also requires SOUND enabled.");
         LinearLayout controls=row();buttons(controls,action("FOLLOW SELECTED",false,()->{
             if(followLocked()){log("Stop and restore first");return;}if(selected==null){log("Select a game first");return;}
@@ -219,7 +219,6 @@ public final class MainActivity extends Activity {
         }
     }
     private void pageGame(){
-        pageFollowing();
         heading("GAME / PLAY-BY-PLAY");
         LinearLayout resume=row();buttons(resume,action("RESUME AFTER REBOOT: "+(prefs.getBoolean("resumeEnabled",false)?"ON":"OFF"),prefs.getBoolean("resumeEnabled",false),()->{
             prefs.edit().putBoolean("resumeEnabled",!prefs.getBoolean("resumeEnabled",false)).apply();render();}));body.addView(resume);

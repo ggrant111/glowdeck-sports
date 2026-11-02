@@ -330,7 +330,13 @@ String htmlEscape(const String &s) {
     }
     return out;
 }
-void redirectHome() { web.sendHeader("Location", "/", true); web.send(303, "text/plain", "Redirecting"); }
+String webPageName(){
+    String name=web.hasArg("return")?web.arg("return"):web.arg("page");
+    const char *allowed[]={"games","following","lights","sound","setup"};
+    for(auto candidate:allowed)if(name==candidate)return name;
+    return "games";
+}
+void redirectHome() { web.sendHeader("Location", "/?page="+webPageName(), true); web.send(303, "text/plain", "Redirecting"); }
 bool followSelected(){
     if(following.busy()){banner("Stop followed games before editing");return false;}
     const gd::Game *g=selectedGame();if(!g){banner("Select a game first");return false;}
@@ -363,16 +369,36 @@ String followingHtml(){
 }
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
-body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.6</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}nav{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:0;background:#0a1418;padding:12px 0}nav a{padding:12px;color:#eaf5f5;text-decoration:none;border-radius:8px;background:#182a30}nav a[aria-current]{background:#31837a}a{color:#57bdb5}select{padding:10px;max-width:100%}button:focus-visible,a:focus-visible{outline:3px solid #f4c95d}footer{padding:24px 0}</style></head><body><h1>GlowDeck GameDay v0.7</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+    const String current=webPageName();
+    page+="<nav aria-label='Main navigation'>";
+    const char *pages[]={"games","following","lights","sound","setup"};
+    const char *labels[]={"Games","Following","Lights","Sound","Setup"};
+    for(int i=0;i<5;++i)page+="<a href='/?page="+String(pages[i])+"'"+(current==pages[i]?" aria-current='page'":"")+">"+labels[i]+"</a>";
+    page+="</nav><p role='status'>"+htmlEscape(uiState.message)+"</p>";
+    if(current=="following"){
     page += followingHtml();
+    }
+    if(current=="setup"){
+        page+="<section><h2>Preferences</h2>";
+    page+="<form method='post' action='/timezone'><select name='tz'><option value='UTC0'>UTC</option><option value='MST7MDT,M3.2.0,M11.1.0'>Mountain</option><option value='PST8PDT,M3.2.0,M11.1.0'>Pacific</option><option value='CST6CDT,M3.2.0,M11.1.0'>Central</option><option value='EST5EDT,M3.2.0,M11.1.0'>Eastern</option></select><button>Save timezone</button></form>";
+    page+="<form method='post' action='/timeformat'><label>Time format <select name='format'><option value='12'"+String(!hour24?" selected":"")+">12-hour (7:00 PM)</option><option value='24'"+String(hour24?" selected":"")+">24-hour (19:00)</option></select></label><button>Save time format</button></form>";
+    page+="<form method='post' action='/resume'><button>Resume after reboot: "+String(resumeEnabled?"ON":"OFF")+"</button></form>";
+        page+="</section>";
+    }
+    if(current=="games"){
     page += "<section><h2>Schedule: next 7 days</h2>";
     for(int day=0;day<7;++day)page+="<form method='post' action='/schedule'><button name='day' value='"+String(day)+"'>"+(day==0?String("Today"):day==1?String("Tomorrow"):String("Day +")+day)+"</button></form>";
-    page+="<p>Schedule date: "+String(scores.date)+". Times use configured timezone (default UTC).</p><form method='post' action='/timezone'><select name='tz'><option value='UTC0'>UTC</option><option value='MST7MDT,M3.2.0,M11.1.0'>Mountain</option><option value='PST8PDT,M3.2.0,M11.1.0'>Pacific</option><option value='CST6CDT,M3.2.0,M11.1.0'>Central</option><option value='EST5EDT,M3.2.0,M11.1.0'>Eastern</option></select><button>Save timezone</button></form>";
-    page+="<form method='post' action='/timeformat'><label>Time format <select name='format'><option value='12'"+String(!hour24?" selected":"")+">12-hour (7:00 PM)</option><option value='24'"+String(hour24?" selected":"")+">24-hour (19:00)</option></select></label><button>Save time format</button></form>";
-    page+="<form method='post' action='/resume'><button>Resume after reboot: "+String(resumeEnabled?"ON":"OFF")+"</button></form></section>";
+    page+="<p>Schedule date: "+String(scores.date)+"</p>";
+    page+="</section>";
+    }
+    if(current=="setup"){
     page += "<section><h2>Status</h2><p>Wi-Fi: " + htmlEscape(WiFi.SSID()) + "<br>NHL: ";
     page += uiState.nhlConnected ? "connected" : "unavailable";
-    page += "<br>Games on selected date: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form></section>";
+    page += "<br>Games on selected date: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form>";
+    page+="</section>";
+    }
+    if(current=="lights"){
     page += "<section><h2>WLED devices</h2><p>Add a WLED device by numeric IPv4 address (must be on this LAN).</p>";
     page += "<form method='post' action='/add'><input name='ip' placeholder='192.168.1.71' required maxlength='15'><button>Add device</button></form>";
     page += "<form method='post' action='/scan'><button>Scan mDNS</button></form>";
@@ -382,14 +408,20 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
         page += "<p>" + htmlEscape(d.name) + " (" + htmlEscape(d.ip) + ") ";
         page += "<form method='post' action='/remove'><input type='hidden' name='ip' value='"+htmlEscape(d.ip)+"'><button>Remove</button></form></p>";
     }
-    page += "</section><section><h2>Team colors</h2><p>Select a game on the touchscreen first, then select a WLED device.</p>";
+    page+="</section>";
+    }
+    if(current=="lights"){
+    page += "<section><h2>Team colors</h2><p>Select a game on the touchscreen first, then select a WLED device.</p>";
     const gd::Game *g = selectedGame();
     if (g) {
         page += "<p>Selected: " + String(g->away) + " at " + String(g->home) + "</p>";
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='away'><button>Apply away team</button></form>";
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='home'><button>Apply home team</button></form>";
     } else page += "<p>No game selected.</p>";
-    page += "</section><section><h2>GameDay goal reactions</h2><p>Reboot resume is OFF unless enabled. Upcoming games wait without changing lights; first live connection skips historical events.</p>";
+    page+="</section>";
+    }
+    if(current=="games"){
+    page += "<section><h2>GameDay goal reactions</h2><p>Reboot resume is OFF unless enabled. Upcoming games wait without changing lights; first live connection skips historical events.</p>";
     page += "<p>Goal lights: <strong>" + String(goals.armed() ? (goals.waiting()?"ARMED - WAITING FOR START":"MONITORING") : "OFF") + "</strong> | " +
       "Celebrate: " + String(gd::celebrationName(goals.mode())) +
       " | TV delay: " + String(goals.delay()) + "s</p>";
@@ -408,7 +440,10 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
         page += "<form method='post' action='/selectgame'><button name='id' value='" + String(item.id) + "'>" +
             htmlEscape(String(item.away)+" @ "+item.home+" "+gd::gameStateText(item)) + "</button></form>";
     }
-    page += "</section><section><h2>GameDay Sounds (v0.4)</h2><p>Built-in horns and SD WAV files. Sound OFF after reboot. Preview works without NHL/WLED.</p>";
+    page+="</section>";
+    }
+    if(current=="sound"){
+    page += "<section><h2>GameDay Sounds (v0.4)</h2><p>Built-in horns and SD WAV files. Sound OFF after reboot. Preview works without NHL/WLED.</p>";
     page += "<p>Audio: " + String(soundEnabled?"ON":"OFF") + " | Volume: " + String(soundVolume) + "%</p>";
     page += "<form method='post' action='/sound'><button name='action' value='toggle'>Sound ON/OFF</button></form>";
     page += "<form method='post' action='/sound'><button name='action' value='down'>Volume -10</button></form>";
@@ -426,11 +461,17 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
     page += "<form method='post' action='/sound'><button name='action' value='previewHome'>Preview home</button></form>";
     page += "<p>Custom file name: /audio/NAME.wav (mono PCM 16 kHz, 16 bit, up to 10 seconds)</p>";
     page += "<form method='post' action='/sound'><input name='clip' placeholder='GOAL' maxlength='24' required pattern='[A-Z0-9_-]+'><button name='action' value='fileAway'>Set away WAV</button><button name='action' value='fileHome'>Set home WAV</button></form>";
-    page += "</section><section><h2>DDP realtime event effects</h2><p>Whole device, 1–600 LEDs, 20fps, 8 seconds. Enable WLED realtime receive; Main segment only must be OFF.</p>";
+    page+="</section>";
+    }
+    if(current=="lights"){
+    page += "<section><h2>DDP realtime event effects</h2><p>Whole device, 1–600 LEDs, 20fps, 8 seconds. Enable WLED realtime receive; Main segment only must be OFF.</p>";
     page += "<form method='post' action='/effects'><button name='action' value='0'>DDP "+String(wled.ddpEnabled?"ON":"OFF")+" — toggle</button></form>";
     page += "<p>Selected: "+String(gd::eventName(gd::SportEvent(effectSelection)))+String(effectMask&(1<<effectSelection)?" ON":" OFF")+"</p>";
     page += "<form method='post' action='/effects'><button name='action' value='1'>Next event</button><button name='action' value='2'>Toggle event</button><button name='action' value='3'>Preview away</button><button name='action' value='4'>Preview home</button></form>";
-    page += "</section><small>Prototype: local HTTP without login, trusted LAN only. Do not port forward. Solid mode: segment 0; DDP: whole strip with automatic restoration.</small></body></html>";
+    page+="</section>";
+    }
+    page.replace("</form>","<input type='hidden' name='return' value='"+current+"'></form>");
+    page+="<footer>Local control · GlowDeck v0.7 · <a href='/?page=setup'>Connection and preferences</a></footer></body></html>";
     web.send(200, "text/html; charset=utf-8", page);
 }
 void refreshNhl() {
@@ -729,7 +770,7 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.6.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.7.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.following=&following;
     uiState.scoreboard = &scores;
     uiState.leds = &wled;
