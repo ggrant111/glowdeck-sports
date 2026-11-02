@@ -220,7 +220,7 @@ final class LanSoundServer {
             +"X-Content-Type-Options: nosniff\r\n"
             +"X-Frame-Options: DENY\r\n"
             +"Referrer-Policy: no-referrer\r\n"
-            +"Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'\r\n"
+            +"Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; media-src blob:; base-uri 'none'; form-action 'self'\r\n"
             +"Connection: close\r\n\r\n";
         out.write(headers.getBytes(StandardCharsets.US_ASCII));
         out.write(body);
