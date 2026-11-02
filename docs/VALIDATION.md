@@ -64,3 +64,10 @@
 - PASS (code/test): mode logic validates AWAY-only, HOME-only, BOTH, unknown owner, invalid stored mode, duplicate suppression, cooldown/busy policy, and ambiguous multi-goal suppression.
 - Feature unverified on the user's physical Fire TV until sideloading the v0.3 APK and testing both-team goals.
 - APK: [GlowDeck-GameDay-FireTV-v0.3.apk](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk).
+
+## ESP32 v0.3 PBP parity — software acceptance (2026-11-01)
+
+- New native Unity tests: away/home/both, scoring-side color, duplicate/ambiguous new IDs, incorrect team IDs, post-outage baselining, TV delay and eight-second WLED restoration.
+- Cross-platform Python parity check compares 32 team-color RGB codes, UI modes, NHL goal IDs, polling intervals, cooldown and restore conventions against the working Fire TV implementation.
+- GitHub Actions firmware build and native tests **PASSED on development branch** (initial run 41379355680). Final post-documentation commit and main-branch build separately tracked.
+- NOT RUN ON PHYSICAL CYD: touch calibration, PBP filter heap/resource usage, Wi-Fi, TLS correctness, WLED discovery, complete eight-second scene restoration, reboot recovery, and multi-hour soak. Never claim this is hardware-verified.

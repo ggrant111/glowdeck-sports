@@ -85,6 +85,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Verified:** [CI run 41377858153](https://github.com/ggrant111/glowdeck-sports/actions/runs/41377858153) succeeded, producing [APK v0.3](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk).
 - **Pending:** User Fire TV sideload and live BOTH mode validation while YouTube TV is playing. V0.2's previous live Anaheim goal success is retained as historical evidence, not evidence for v0.3.
 
+### 2026-11-01 — ESP32 v0.3 catch-up and cross-platform parity policy
+
+- **Implemented:** ESP32 firmware play-by-play goal-ID polling, three-way AWAY/HOME/BOTH touch/web control, per-game NVS selection, eight-second WLED scene duration, safe pause/new baseline after network errors, and corresponding native tests. Updated local browser demo; requested matching hosted Lovable simulator update.
+- **Governance:** Added `docs/FEATURE_PARITY.md` and `.github/workflows/parity.yml` with 12 static parity checks, including the full 32-team RGB color mapping.
+- **Verification:** Early parity-branch CI passed PlatformIO native tests and ESP32 compilation; latest commit/build and hosted deployment status to be recorded below. No real CYD hardware validation.
+- **Next:** verify final CI, merge branch, publish firmware artifact and continue board bring-up when hardware arrives.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

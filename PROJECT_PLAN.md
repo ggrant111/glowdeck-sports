@@ -4,7 +4,7 @@
 > **Project:** GlowDeck GameDay · **Hardware:** ESP32-2432S028R ("Cheap Yellow Display" / CYD, 2.8-inch resistive touchscreen)  
 > **Repository:** https://github.com/ggrant111/glowdeck-sports  
 > **Owner:** Geoff · **Created:** 2026-11-01 · **Last reviewed:** 2026-11-01  
-> **Current phase:** Sprint 1 hardware validation **blocked until the CYD arrives**; Sprint 2 **v0.2 source, native tests, ESP32 compilation and firmware artifact VERIFIED in CI**, physical acceptance pending.
+> **Current phase:** Sprint 1 hardware validation **blocked until the CYD arrives**; Sprint 2 **v0.2 CI VERIFIED**, and ESP32 Sprint 3 v0.3 PBP + Away/Home/Both source implemented and CI in progress; actual CYD hardware acceptance remains blocked.
 
 ## 0. How to keep this plan current
 
@@ -309,3 +309,24 @@ With the CYD touchscreen still unavailable, we have added a **native Fire TV APK
 - [ ] **Rapid goals:** verify intentional busy/cooldown suppression and that mode changes require STOP then ARM, without stale event replays.
 
 **Release safety:** Debug signature can change between CI builds; users may need to uninstall prior test APK and configure WLED again. Continue testing only on noncritical lighting.
+
+## 13. Cross-platform parity: ESP32 v0.3 NHL play IDs and team modes (2026-11-01)
+
+See the **[feature parity contract](docs/FEATURE_PARITY.md)** and its automated check `python3 scripts/check-parity.py`. All new game, lighting, UI and reliability work must be reviewed across **Fire TV**, **ESP32**, and the **browser simulator**.
+
+- [x] ESP32 touchscreen Away/Home/Both selector (320x240 layout); same choices on local web configuration.
+- [x] Saved per-game mode in ESP32 NVS; mode/delay changes require deliberate disarm; no auto-arming on restart.
+- [x] NHL play-by-play goal event IDs and owner IDs, filtered ArduinoJson streaming parser and game-ID verification. Scoreboard-based deltas no longer drive auto effects.
+- [x] First-event baseline, multiple-new-goal suppression, unknown owner and duplicates rejection, 20-second cooldown and stale-feed pause/rebaseline.
+- [x] Automatic scoring-team color, **8-second** WLED effect (was 10s) and existing NVS crash-safe restoration.
+- [x] Native tests for both-team colors, network recovery, duplicate IDs, wrong teams and 8-second restoration; PlatformIO compiler CI on parity branch.
+- [x] Local static browser simulator upgraded with Away/Home/Both and 8-second mock restoration.
+- [x] Hosted Lovable browser simulator updated toward v0.3 (separate provider); mobile test report passed. Publication and Safari verification tracked separately.
+- [x] Added static cross-platform parity workflow ensuring team colors, UI modes, PBP source, timing and restore hooks agree.
+- [ ] Merge green ESP32 v0.3 parity branch to `main` after CI finishes, record exact run.
+- [ ] **Hardware acceptance blocked until ESP32 arrives:** touch map/buttons, TLS PBP fetch and heap size, Wi-Fi reconnect, mDNS WLED, user-selected team colors, 8-second physical restore, NVS reboot journal and 2-hour soak.
+- [ ] Fire TV v0.3 BOTH mode must be observed with goals from both sides; Fire TV v0.2 prior physical single-team success is not proof of v0.3.
+- [ ] Hosted simulator v0.3 must be verified with an actual mobile Safari session.
+- [ ] Review and fix `WiFiClientSecure::setInsecure()` before production release.
+
+**Why hardware and software statuses differ:** The user's Fire TV already produced two real Anaheim goal celebrations, but their CYD touchscreen board has not arrived. The v0.3 ESP32 build can pass CI without validating physical touch, memory or light restoration.

@@ -1,10 +1,10 @@
-# GlowDeck GameDay v0.2 — Sprint 2 (hardware testing pending)
+# GlowDeck GameDay v0.3 — ESP32 NHL PBP parity (hardware testing pending)
 
 **ESP32-2432S028R (2.8" CYD) • 320×240 landscape touchscreen • PlatformIO**
 
-Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
+Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Cross-platform parity contract](docs/FEATURE_PARITY.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
 
-**CURRENT Fire TV v0.2: [Background goal monitoring APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk)** — now uses an opt-in Android foreground service, so it can continue NHL play-by-play polling and WLED goal effects while the user watches a game in another Fire TV app. Monitoring requires explicit arming and can be stopped from the app or notification. [Installation and validation](firetv/README.md). This is a **test build**; real Fire TV/Fire OS endurance tests remain open.
+**CURRENT Fire TV v0.3: [Away/Home/Both background goal monitoring APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk)** — now uses an opt-in Android foreground service, so it can continue NHL play-by-play polling and WLED goal effects while the user watches a game in another Fire TV app. Monitoring requires explicit arming and can be stopped from the app or notification. [Installation and validation](firetv/README.md). This is a **test build**; real Fire TV/Fire OS endurance tests remain open.
 
 **NEW: [GlowDeck GameDay Fire TV APK](firetv/README.md)** — a native, D-pad-controlled Fire TV test console. Select real NHL games, inspect play-by-play, pair a local WLED IP, preview team colors with restore, and optionally arm safe new-goal reactions. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). This is a **separate test platform**; it does not replace the ESP32 firmware.
 
@@ -29,6 +29,17 @@ py -3 tools\gameday_bridge.py --wled-ip 192.168.1.71 --listen 0.0.0.0
 ```
 
 On iPhone open `http://<computer-WiFi-IP>:8787/`, **not** the WLED IP, and enter the bridge access code shown in the computer terminal. Run `ipconfig` on Windows to find your computer IPv4 address. Tests: `python -m unittest discover -s tools/tests -v`. This bridge is a **temporary computer-hosted test bench** and cannot validate the ESP32 hardware. Keep it off public Wi-Fi and never port-forward it.
+
+
+## ESP32 v0.3: matching Fire TV v0.3 gameplay
+
+The four-screen 320x240 touchscreen now supports **AWAY**, **HOME** and **BOTH** NHL goal celebrations. Each game remembers its celebration mode in NVS. The new goal feed uses NHL **play-by-play event IDs** and server-provided goal owner team IDs rather than scoreboard-only deltas. It polls play-by-play approximately every 25 seconds while explicitly armed, captures a fresh baseline on arming or after feed recovery, ignores ambiguous multi-goal batches, and restores the prior WLED segment-0 scene after **eight seconds**. Modes are also available on the ESP32's local setup webpage. Default after reboot is DISARMED.
+
+This brings software behavior closer to the **Fire TV v0.3**, including scoring team colors, 0-90-second TV delay, 20-second cooldown, network fail-closed behavior, and WLED state journaling. The ESP32 is standalone; it does not require the Fire TV app. **Never arm both controllers against the same WLED controller** until cross-controller coordination is implemented.
+
+**Build/test (PlatformIO):** `pio test -e native` and `pio run -e cyd`. Github Actions builds a `GlowDeck-GameDay-v0.3-firmware` artifact; upload with PlatformIO rather than flashing that single BIN at offset 0.
+
+**Hardware blockers:** ESP32 touchscreen and WLED behavior have not been tested on a real board, and the prototype still skips NHL TLS certificate verification. Check actual touch mapping, Wi-Fi, NHL PBP JSON parse memory, and real WLED scene restoration on board before trusting unattended operation.
 
 ## What changed in v0.2
 
@@ -77,7 +88,7 @@ pio test -e native
 pio run -e cyd
 ```
 
-GitHub Actions → **Build and test GameDay firmware** automatically runs the native tests, builds the ESP32 firmware, and publishes `GlowDeck-GameDay-v0.2-firmware` artifact. A single `firmware.bin` should **not** be flashed at offset 0: use PlatformIO Upload so bootloader and partitions are handled correctly.
+GitHub Actions → **Build and test GameDay firmware** automatically runs the native tests, builds the ESP32 firmware, and publishes `GlowDeck-GameDay-v0.3-firmware` artifact. A single `firmware.bin` should **not** be flashed at offset 0: use PlatformIO Upload so bootloader and partitions are handled correctly.
 
 ## Project structure
 
@@ -86,8 +97,8 @@ GitHub Actions → **Build and test GameDay firmware** automatically runs the na
 - `src/WledClient.cpp` — local WLED JSON API + NVS crash-recovery journal
 - `src/main.cpp` — ESP32 Wi-Fi, web server, app lifecycle, automatic and manual safety gates
 - `src/Ui.cpp` — four touchscreen pages
-- `src/NhlClient.cpp` — HTTP NHL scoreboard polling adapter
-- `simulator/v02.cpp` — C++ replay with a fake WLED light driver
+- `src/NhlClient.cpp` — HTTP NHL scoreboard and play-by-play polling adapter
+- `simulator/v02.cpp` — v0.3 event-ID C++ replay with a fake WLED light driver
 - `simulator/web/index.html` — interactive self-contained demo
 - `test/test_core/` — Unity tests, native without Arduino libraries
 
