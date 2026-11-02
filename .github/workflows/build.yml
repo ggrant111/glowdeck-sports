@@ -23,3 +23,10 @@ jobs:
         with:
           name: GlowDeck-GameDay-v0.4-firmware
           path: .pio/build/cyd/firmware.bin
+      - name: Compile alternative two-USB ST7789 firmware
+        run: pio run -e cyd_st7789
+      - name: Upload ST7789 landscape image
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlowDeck-GameDay-v0.4-ST7789-landscape-firmware
+          path: .pio/build/cyd_st7789/firmware.bin
