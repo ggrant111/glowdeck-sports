@@ -79,6 +79,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - The earlier service log showed goal detection, goal effect, and restoration completion over approximately eight seconds. Real-device background operation is now confirmed for this scenario.
 - Remaining tests: exact WLED state comparison, STOP during scene, network-recovery behavior, and sustained multi-game monitoring.
 
+### 2026-11-01 — Fire TV v0.3 team celebration selector
+
+- **Implemented:** GAME / EVENTS now supports AWAY, HOME, and BOTH teams, stored independently per selected game. BOTH mode reacts to either team, selecting the real scoring team's color. New selector logic with seven JVM tests; existing background monitoring, dedupe, cooldown, TV delay and WLED restore safety retained.
+- **Verified:** [CI run 41377858153](https://github.com/ggrant111/glowdeck-sports/actions/runs/41377858153) succeeded, producing [APK v0.3](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk).
+- **Pending:** User Fire TV sideload and live BOTH mode validation while YouTube TV is playing. V0.2's previous live Anaheim goal success is retained as historical evidence, not evidence for v0.3.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
