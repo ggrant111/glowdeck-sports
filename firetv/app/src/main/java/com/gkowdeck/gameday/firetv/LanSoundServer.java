@@ -47,6 +47,7 @@ final class LanSoundServer {
     private final SecureRandom random=new SecureRandom();
 
     private volatile boolean wanted=false,ready=false;
+    private volatile long generation=0;
     private volatile String code="",error="",address="";
     private volatile ServerSocket listener;
     private volatile Socket active;
@@ -62,17 +63,19 @@ final class LanSoundServer {
     synchronized void start(){
         if(wanted||!error.isEmpty())return;
         wanted=true;
+        final long epoch=++generation;
         ready=false;
         error="";
         code=String.format(Locale.US,"%08d",random.nextInt(100000000));
         address=localIPv4();
-        worker=new Thread(this::listen,"GlowDeckSoundLAN");
+        worker=new Thread(()->listen(epoch),"GlowDeckSoundLAN");
         worker.setDaemon(true);
         worker.start();
     }
 
     synchronized void stop(){
         wanted=false;
+        ++generation;
         ready=false;
         code=""; // invalidate session immediately on leaving SOUND screen
         closeQuietly(active);
@@ -92,16 +95,16 @@ final class LanSoundServer {
         if(changed!=null)changed.run();
     }
 
-    private void listen(){
+    private void listen(long epoch){
         try(ServerSocket server=new ServerSocket()){
             server.setReuseAddress(true);
             server.bind(new InetSocketAddress(LanSoundProtocol.PORT),4);
+            if(!wanted||epoch!=generation)return;
             listener=server;
-            if(!wanted)return;
             ready=true;
             fireChanged();
             Log.i(TAG,"LAN audio manager ready on "+url()+" (pairing code displayed on Fire TV)");
-            while(wanted){
+            while(wanted&&epoch==generation){
                 try(Socket client=server.accept()){
                     active=client;
                     client.setSoTimeout(15000);
@@ -118,19 +121,21 @@ final class LanSoundServer {
                 }catch(Exception ex){
                     if(wanted)Log.e(TAG,"LAN sound request failed",ex);
                 }finally{
-                    active=null;
+                    if(active!=null&&active.isClosed())active=null;
                 }
             }
         }catch(IOException ex){
-            if(wanted){
+            if(wanted&&epoch==generation){
                 error="Cannot listen on port "+LanSoundProtocol.PORT+": "+ex.getMessage();
                 Log.e(TAG,error);
             }
         }finally{
-            ready=false;
-            wanted=false;
-            listener=null;
-            fireChanged();
+            if(epoch==generation){
+                ready=false;
+                wanted=false;
+                listener=null;
+                fireChanged();
+            }
         }
     }
 
