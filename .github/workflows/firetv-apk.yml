@@ -1,7 +1,7 @@
 name: Fire TV test APK
 on:
   push:
-    branches: [main, firetv-v0.4.1.1-lan-audio]
+    branches: [main, firetv-v0.4.1-lan-audio]
     paths:
       - 'firetv/**'
       - '.github/workflows/firetv-apk.yml'
@@ -46,7 +46,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=firetv-v0.4.1.1-test
+          TAG=firetv-v0.4.1-test
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.4.1 (background monitoring test)' --prerelease --latest=false \
               --notes 'Paired LAN sound manager for iPhone uploads, all NHL team sound assignments, volume and TV previews; NHL background goal service unchanged. Trusted LAN HTTP only, keep SOUND page open. Ephemeral debug key may require uninstall.'
