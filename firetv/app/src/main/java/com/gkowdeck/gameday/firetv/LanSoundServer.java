@@ -60,7 +60,7 @@ final class LanSoundServer {
     }
 
     synchronized void start(){
-        if(wanted)return;
+        if(wanted||!error.isEmpty())return;
         wanted=true;
         ready=false;
         error="";
@@ -80,6 +80,8 @@ final class LanSoundServer {
         active=null;
         listener=null;
     }
+
+    synchronized void restart(){stop();error="";start();}
 
     boolean ready(){return ready;}
     String pairingCode(){return code;}
@@ -390,7 +392,7 @@ final class LanSoundServer {
             if(!file.isFile()){fail(out,409,"Upload a WAV for this team first");return;}
             byte[] head=new byte[44];
             try(FileInputStream in=new FileInputStream(file)){
-                if(in.read(head)!=44||!LanSoundProtocol.canonicalUpload(head,(int)file.length())){
+                if(in.read(head)!=44 || !LanSoundProtocol.canonicalUpload(head,(int)file.length())){
                     fail(out,409,"Existing WAV is invalid; upload again");return;
                 }
             }
@@ -437,17 +439,15 @@ final class LanSoundServer {
             }
             file.flush();
             file.getFD().sync();
-            if(!LanSoundProtocol.canonicalUpload(head,length)){
-                fail(out,400,"WAV must be PCM mono 16000Hz 16-bit, 1–10 seconds");
-                return;
-            }
         }catch(IOException ex){
             temp.delete();
-            fail(out,400,"Upload interrupted or invalid: "+ex.getMessage());return;
+            fail(out,400,"Upload interrupted or invalid");
+            return;
         }
         if(!LanSoundProtocol.canonicalUpload(head,length)){
             temp.delete();
-            return; // invalid response was already sent above
+            fail(out,400,"WAV must be PCM mono 16000Hz 16-bit, up to 10 seconds");
+            return;
         }
         if(!temp.renameTo(target)){
             temp.delete();
