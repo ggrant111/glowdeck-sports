@@ -26,5 +26,7 @@ jobs:
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.5.2-${{ matrix.board }}-firmware
-          path: .pio/build/${{ matrix.board }}/firmware.bin
+          name: GlowDeck-GameDay-v0.5.3-${{ matrix.board }}-firmware
+          path: |
+            .pio/build/${{ matrix.board }}/firmware.bin
+            .pio/build/${{ matrix.board }}/firmware.elf

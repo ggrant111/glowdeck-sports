@@ -14,6 +14,9 @@
 #include "Ui.h"
 #include "TouchTransform.h"
 
+// TLS handshakes run inside setup/loop and need headroom beyond the default 8 KiB.
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+
 namespace {
 constexpr uint32_t NHL_INTERVAL_MS = 60000;
 constexpr uint32_t PBP_INTERVAL_MS = 25000;
@@ -391,11 +394,14 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
 }
 void refreshNhl() {
     if (WiFi.status() != WL_CONNECTED) { banner("No Wi-Fi for NHL"); return; }
-    gd::Scoreboard incoming;
+    // Requests are serialized on loopTask; keep bulky scratch data off its stack.
+    static gd::Scoreboard incoming;
     String error;
     bool ok = nhl.poll(incoming, error,scheduleDay);
     lastNhl = millis();
     nhlEverPolled = true;
+    Serial.printf("NHL memory: stack minimum free=%u bytes, heap free=%u bytes\n",
+        unsigned(uxTaskGetStackHighWaterMark(nullptr)),unsigned(ESP.getFreeHeap()));
     uiState.nhlConnected = ok;
     uiState.nhlError = error;
     if (!ok) {
@@ -424,7 +430,7 @@ void refreshNhl() {
 }
 void refreshPlayByPlay() {
     if (!goals.armed() || WiFi.status()!=WL_CONNECTED) return;
-    gd::GoalFeed sample; String error;
+    static gd::GoalFeed sample; String error;
     const bool wasPaused=goals.paused();
     const bool ok=nhl.pollGoals(goals.gameId(),sample,error,&trackedGame);
     lastPbp=millis(); pbpEverPolled=true;
@@ -657,6 +663,7 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
+    Serial.printf("GlowDeck ESP32 v0.5.3 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.scoreboard = &scores;
     uiState.leds = &wled;
     ui.begin();
@@ -704,7 +711,7 @@ void loop() {
     if(resumePending && online) {
         static uint32_t lastResume=0;
         if(!lastResume || millis()-lastResume>30000) {
-            lastResume=millis(); gd::GoalFeed feed;String err;
+            lastResume=millis(); static gd::GoalFeed feed;String err;
             if(nhl.pollGoals(trackedGame.id,feed,err,&trackedGame)) {
                 if(!strcmp(trackedGame.state,"OFF")||!strcmp(trackedGame.state,"FINAL")||!strcmp(trackedGame.state,"CNCL")){resumePending=false;saveResume();banner("Saved game ended or cancelled");}
                 else if(gd::isLive(trackedGame)||gd::isUpcoming(trackedGame)) {
