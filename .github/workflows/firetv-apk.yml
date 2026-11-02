@@ -32,22 +32,22 @@ jobs:
       - name: Verify APK and checksum
         run: |
           test -s firetv/app/build/outputs/apk/debug/app-debug.apk
-          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.2.apk
-          sha256sum GlowDeck-GameDay-FireTV-v0.2.apk > firetv-v0.2.sha256
+          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.3.apk
+          sha256sum GlowDeck-GameDay-FireTV-v0.3.apk > firetv-v0.3.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-FireTV-v0.2-debug-APK
+          name: GlowDeck-GameDay-FireTV-v0.3-debug-APK
           path: |
-            GlowDeck-GameDay-FireTV-v0.2.apk
-            firetv-v0.2.sha256
+            GlowDeck-GameDay-FireTV-v0.3.apk
+            firetv-v0.3.sha256
           retention-days: 90
-      - name: Publish standalone Fire TV v0.2 test release
+      - name: Publish standalone Fire TV v0.3 test release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=firetv-v0.2.0-test
+          TAG=firetv-v0.3.0-test
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.2 (background monitoring test)' --prerelease --latest=false \
-              --notes 'Foreground-service NHL goal polling while watching other apps, persistent STOP notification, WLED scene recovery. Opt-in only; not hardware verified. Release uses an ephemeral CI debug key; you may need to uninstall v0.1 first.'
+            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.3 (background monitoring test)' --prerelease --latest=false \
+              --notes 'AWAY / HOME / BOTH celebrations per selected NHL game, scoring team-specific colors, foreground monitor behind streaming apps, WLED restore journal. Opt-in only. Ephemeral debug key may require uninstall first.'
           fi
-          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.2.apk firetv-v0.2.sha256 --clobber
+          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.3.apk firetv-v0.3.sha256 --clobber

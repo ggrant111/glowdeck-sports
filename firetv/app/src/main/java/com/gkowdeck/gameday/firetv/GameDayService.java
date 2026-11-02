@@ -40,7 +40,8 @@ public final class GameDayService extends Service {
     private SharedPreferences monitor, lab;
     private long gameId, lastSuccessfulPoll, lastScoreCheck, lastEffectAt;
     private String away, home, ip;
-    private boolean favoriteHome, baselined, paused;
+    private boolean baselined, paused;
+    private int celebrationMode;
     private int delaySec;
     private ScheduledFuture<?> pollTask, queuedGoal, restoreTask;
     private String state = "STARTING";
@@ -99,10 +100,12 @@ public final class GameDayService extends Service {
         gameId = intent.getLongExtra("gameId", 0);
         away = intent.getStringExtra("away"); home = intent.getStringExtra("home");
         ip = intent.getStringExtra("wledIp");
-        favoriteHome = intent.getBooleanExtra("favoriteHome", false);
+        celebrationMode = CelebrationSelection.normalize(intent.hasExtra("celebrationMode")
+                ? intent.getIntExtra("celebrationMode", CelebrationSelection.AWAY)
+                : (intent.getBooleanExtra("favoriteHome", false) ? CelebrationSelection.HOME : CelebrationSelection.AWAY));
         delaySec = MonitorRules.delaySeconds(intent.getIntExtra("delaySec", 0));
         monitor.edit().putLong("gameId", gameId).putString("away", away).putString("home", home)
-                .putString("wledIp", ip).putBoolean("favoriteHome", favoriteHome).putInt("delaySec",delaySec).apply();
+                .putString("wledIp", ip).putInt("celebrationMode", celebrationMode).putInt("delaySec",delaySec).apply();
         // Android 8+ requires foreground promotion immediately, BEFORE network access.
         state = "STARTING";
         startForeground(NOTIFICATION_ID, notification("Checking NHL baseline and WLED"));
@@ -131,7 +134,7 @@ public final class GameDayService extends Service {
             lastSuccessfulPoll = System.currentTimeMillis();
             paused = false;
             if (stopping) return;
-            publish("ARMED", away + " @ " + home + " • " + (favoriteHome ? home : away) + " goals • " + delaySec + "s delay");
+            publish("ARMED", away + " @ " + home + " • " + CelebrationSelection.label(celebrationMode,away,home) + " goals • " + delaySec + "s delay");
             pollTask = worker.scheduleWithFixedDelay(this::pollSafe, 25, 25, TimeUnit.SECONDS);
         } catch (Exception ex) { failAndStop("Unable to arm: " + message(ex)); }
     }
@@ -167,13 +170,13 @@ public final class GameDayService extends Service {
                 paused = false;
             } else {
                 int goalOwner = tracker.update(events(pbp));
-                int favoriteId = favoriteHome ? pbp.homeId : pbp.awayId;
+                int acceptedOwner=CelebrationSelection.acceptedOwner(goalOwner,pbp.awayId,pbp.homeId,celebrationMode);
                 boolean canReact = MonitorRules.shouldCelebrate(running && !stopping, true,
                         lab.contains("restoreJson"), queuedGoal != null || restoreTask != null,
-                        goalOwner, favoriteId, now, lastEffectAt);
+                        goalOwner, acceptedOwner, now, lastEffectAt);
                 if (goalOwner > 0 && !canReact)
-                    Log.i("GlowDeckMonitor", "Goal ignored (opponent/busy/cooldown/recovery)");
-                if (canReact) queueGoal(favoriteHome ? home : away);
+                    Log.i("GlowDeckMonitor", "Goal ignored (team not selected/busy/cooldown/recovery)");
+                if (canReact) queueGoal(goalOwner == pbp.homeId ? home : away);
             }
             lastSuccessfulPoll = now;
         } catch (Exception ex) {
@@ -214,7 +217,7 @@ public final class GameDayService extends Service {
             restoreTask = null;
             try {
                 restoreSavedState();
-                if (!stopping && !paused) publish("ARMED", "Restored scene • awaiting new " + (favoriteHome?home:away) + " goals");
+                if (!stopping && !paused) publish("ARMED", "Restored scene • awaiting " + CelebrationSelection.label(celebrationMode,away,home) + " goals");
             } catch (Exception ex) { publish("RESTORE NEEDED", "WLED restore failed. Open app: " + message(ex)); }
         },8,TimeUnit.SECONDS);
     }

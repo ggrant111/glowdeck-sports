@@ -40,7 +40,7 @@ public final class MainActivity extends Activity {
     private NhlApi.Board board; private NhlApi.Game selected;
     private final List<String> lines=new ArrayList<>();
     private List<NhlApi.Play> recentPlays=new ArrayList<>();
-    private int page=0,delaySec=0;private boolean favoriteHome=false;private String serviceState="";
+    private int page=0,delaySec=0,celebrationMode=CelebrationSelection.AWAY;private String serviceState="";
     private boolean wledConnected=false,scoreBusy=false,pbpBusy=false,resumed=false,previewActive=false,restoreBusy=false;
     private String wledIp="192.168.1.71",wledName="Not connected",fetchStatus="Not checked",lastScoreAt="Never";
     private long lastScoresMs=0,lastPbpMs=0;
@@ -61,7 +61,7 @@ public final class MainActivity extends Activity {
         }
         prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.2 started. Background monitoring is opt-in.");
+        log("GameDay Fire TV v0.3 started. Celebrations can follow away, home, or both teams.");
         buildShell();render();
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
@@ -134,8 +134,14 @@ public final class MainActivity extends Activity {
         }
         card(selected.matchup()+"    "+selected.score(),selected.status()+"   •   Game ID "+selected.id);
         LinearLayout tools=row();buttons(tools,action("FETCH GAME EVENTS",true,()->checkPlays(false)),action("CHANGE GAME",false,()->{page=0;render();}));body.addView(tools);
-        heading("Choose team for goal lighting");LinearLayout sides=row();
-        buttons(sides,action("AWAY: "+selected.away,!favoriteHome,()->chooseSide(false)),action("HOME: "+selected.home,favoriteHome,()->chooseSide(true)));body.addView(sides);
+        heading("Celebrate goals for");
+        subtitle("Choose whose goals trigger lights; BOTH uses the actual scoring team's color.");
+        LinearLayout sides=row();
+        buttons(sides,
+            action("AWAY: "+selected.away,celebrationMode==CelebrationSelection.AWAY,()->chooseCelebrations(CelebrationSelection.AWAY)),
+            action("HOME: "+selected.home,celebrationMode==CelebrationSelection.HOME,()->chooseCelebrations(CelebrationSelection.HOME)),
+            action("BOTH TEAMS",celebrationMode==CelebrationSelection.BOTH,()->chooseCelebrations(CelebrationSelection.BOTH)));
+        body.addView(sides);
         subtitle("TV stream delay: "+delaySec+" seconds (in 15s steps)");LinearLayout delays=row();
         buttons(delays,action("− 15s",false,()->setDelay(-15)),action("+ 15s",false,()->setDelay(15)));body.addView(delays);
         card("Background monitoring",monitorStatus()+"  •  "+monitorDetail());
@@ -173,11 +179,21 @@ public final class MainActivity extends Activity {
         LinearLayout tools=row();buttons(tools,action("REFRESH SCORES",true,()->refreshScores(true)),action("CLEAR LOG",false,()->{lines.clear();log("Log cleared");render();}));body.addView(tools);
         for(int i=lines.size()-1;i>=0;i--)body.addView(txt(lines.get(i),16,MUTED,false));
         heading("Installation / safety");
-        subtitle("- Select LIVE NHL game and connected WLED, then ARM IN BACKGROUND.\n- Press HOME to watch a streaming app; foreground service keeps polling.\n- The ongoing notification has a STOP monitoring action.\n- Return to GameDay and press STOP to end. Reboot/force-stop does not re-arm.\n- NHL play-by-play polling: 25s; feed errors pause then re-baseline.\n- Favorite goal shows solid color 8s; WLED scene is journaled and restored.\n- If restore fails, stop and open WLED tab to retry; never use safety-critical lights.\n- Fire OS memory/sleep restrictions may stop the service; verify on your own Fire TV.");
+        subtitle("- Select LIVE NHL game and connected WLED, then ARM IN BACKGROUND.\n- Press HOME to watch a streaming app; foreground service keeps polling.\n- The ongoing notification has a STOP monitoring action.\n- Return to GameDay and press STOP to end. Reboot/force-stop does not re-arm.\n- NHL play-by-play polling: 25s; feed errors pause then re-baseline.\n- Choose AWAY, HOME or BOTH celebrations per selected game. Both uses the scoring team color for 8s and restores WLED.\n- If restore fails, stop and open WLED tab to retry; never use safety-critical lights.\n- Fire OS memory/sleep restrictions may stop the service; verify on your own Fire TV.");
     }
     private void log(String m){String stamp=DateFormat.getTimeInstance(DateFormat.MEDIUM,Locale.US).format(new Date());lines.add(stamp+"  "+m);if(lines.size()>70)lines.remove(0);android.util.Log.i("GlowDeckGameDay",m);}
-    private void chooseGame(NhlApi.Game g){if(denyChangeWhileMonitoring())return;selected=g;recentPlays.clear();page=1;log("Selected "+g.matchup()+" "+g.id);render();}
-    private void chooseSide(boolean home){if(denyChangeWhileMonitoring())return;favoriteHome=home;render();}
+    private void chooseGame(NhlApi.Game g){
+        if(denyChangeWhileMonitoring())return;
+        selected=g;
+        celebrationMode=CelebrationSelection.normalize(prefs.getInt("celebrationMode."+g.id,CelebrationSelection.AWAY));
+        recentPlays.clear();page=1;log("Selected "+g.matchup()+" "+g.id+" • celebrate "+CelebrationSelection.label(celebrationMode,g.away,g.home));render();
+    }
+    private void chooseCelebrations(int mode){
+        if(denyChangeWhileMonitoring() || selected==null)return;
+        celebrationMode=CelebrationSelection.normalize(mode);
+        prefs.edit().putInt("celebrationMode."+selected.id,celebrationMode).apply();
+        log("Celebrate "+CelebrationSelection.label(celebrationMode,selected.away,selected.home)+" goals");render();
+    }
     private void setDelay(int delta){if(denyChangeWhileMonitoring())return;delaySec=Math.max(0,Math.min(90,delaySec+delta));prefs.edit().putInt("delaySec",delaySec).apply();render();}
     private interface Work<T>{T run()throws Exception;}
     private interface Result<T>{void ok(T x);}
@@ -270,7 +286,7 @@ public final class MainActivity extends Activity {
         Intent i=new Intent(this,GameDayService.class).setAction(GameDayService.START)
                 .putExtra("gameId",selected.id).putExtra("away",selected.away)
                 .putExtra("home",selected.home).putExtra("wledIp",wledIp)
-                .putExtra("favoriteHome",favoriteHome).putExtra("delaySec",delaySec);
+                .putExtra("celebrationMode",celebrationMode).putExtra("delaySec",delaySec);
         try {
             if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);
             log("Background goal monitoring requested. Switch to your streaming app after ARMED appears.");
