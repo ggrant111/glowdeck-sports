@@ -1,10 +1,75 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GlowDeck GameDay v0.3 — hardware-free demo</title><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GlowDeck GameDay v0.4 — hardware-free demo</title><style>
 *{box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#091317;color:#f2f9fa;margin:0;padding:20px}h1{font-size:24px;margin:0}p{color:#a7b9bf}main{display:flex;flex-wrap:wrap;gap:25px;margin-top:20px}.screen{width:320px;height:240px;flex-shrink:0;border:3px solid #597079;border-radius:14px;background:#101e24;overflow:hidden;position:relative;box-shadow:0 8px 24px #0007}.head{background:#1d333a;height:34px;padding:9px;font-size:12px;display:flex;justify-content:space-between}.head strong{color:#6cc6bd}.body{padding:7px;height:172px;font-size:12px}.tabs{display:flex;padding:3px;gap:3px;background:#1d333a;height:34px}.tabs button{padding:3px 0;flex:1;font-size:10px}.panel{background:#1e333b;border-radius:6px;padding:8px;margin:5px 0}.actions{display:flex;gap:4px;align-items:center;justify-content:space-between;margin:6px 0}button{border:0;border-radius:6px;background:#31837a;color:white;cursor:pointer;font-weight:600;padding:9px}.screen button{padding:7px}.muted{color:#a5b6bb}.dim{background:#29424b}.selected{background:#205d62}.score{font-size:26px;text-align:center;font-weight:800;padding:0;margin:3px}.center{text-align:center}.workbench{max-width:500px}.workbench button{margin:4px}pre{font-size:12px;line-height:1.45;white-space:pre-wrap;overflow:auto;height:160px;background:#172a31;padding:12px;border-radius:8px}.light{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;background:#bd8651}
-</style></head><body><h1>GlowDeck GameDay v0.3</h1><p>Hardware-free interactive UI mock at the ESP32 320 × 240 screen size. Fake scores and WLED devices; this is not a firmware emulator.</p><p style="color:#d7f3ee;background:#183238;border-left:4px solid #31837a;padding:12px;border-radius:8px"><strong>On iPhone or a restricted file preview?</strong> JavaScript may be blocked here, making the screen blank. Open the <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9;font-weight:700">hosted interactive simulator</a> in Safari instead.</p><main><div class="screen"><div class="head"><b>GLOWDECK</b><strong id="title">NHL</strong><span id="wifi">WiFi</span></div><div class="body" id="body"><p style="padding:20px 8px;text-align:center">Loading simulator… If this stays blank, <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9">open the hosted demo</a> in Safari.</p></div><div class="tabs" id="tabs"></div></div><section class="workbench"><h2>Simulation controls</h2><p>Choose AWAY, HOME, or BOTH goal celebrations, then arm. The simulated goal changes only the corresponding team's light color for eight seconds; no hardware is contacted.</p><button onclick="goal(false)">UTA goal +1</button><button onclick="goal(true)">BOS goal +1</button><button onclick="note('Duplicate poll suppressed')">Duplicate poll</button><button onclick="correction()">Score correction</button><button onclick="disconnect()">Toggle Wi-Fi outage</button><button onclick="reset()">Reboot</button><p>Mock WLED: <span class="light" id="light"></span> <span id="lightlabel">Original scene</span></p><h3>Mock event log</h3><pre id="log"></pre><p>This interactive browser demo does not connect to NHL or send real WLED commands. The PlatformIO C++ simulator and Unity tests validate the actual scheduling logic separately.</p></section></main>
+.audio-label{display:inline-block;min-width:43px}.body button{font-size:11px}
+input[type=file]{max-width:95%;font-size:12px;margin:3px 0}
+select{padding:5px;border-radius:5px;background:#1e333b;color:white;border:1px solid #53727c}
+</style></head><body><h1>GlowDeck GameDay v0.4</h1><p>Hardware-free interactive UI mock at the ESP32 320 × 240 screen size. Fake scores and WLED devices; this is not a firmware emulator. Sound previews use the browser's speakers only after a user gesture.</p><p style="color:#d7f3ee;background:#183238;border-left:4px solid #31837a;padding:12px;border-radius:8px"><strong>On iPhone or a restricted file preview?</strong> JavaScript may be blocked here, making the screen blank. Open the <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9;font-weight:700">hosted interactive simulator</a> in Safari instead.</p><main><div class="screen"><div class="head"><b>GLOWDECK</b><strong id="title">NHL</strong><span id="wifi">WiFi</span></div><div class="body" id="body"><p style="padding:20px 8px;text-align:center">Loading simulator… If this stays blank, <a href="https://glowdeck-gameday-simulator.lovable.app" style="color:#90e7d9">open the hosted demo</a> in Safari.</p></div><div class="tabs" id="tabs"></div></div><section class="workbench"><h2>Simulation controls</h2><p>Choose AWAY, HOME, or BOTH goal celebrations, then arm. The simulated goal changes only the corresponding team's light color for eight seconds; no hardware is contacted.</p><button onclick="goal(false)">UTA goal +1</button><button onclick="goal(true)">BOS goal +1</button><button onclick="note('Duplicate poll suppressed')">Duplicate poll</button><button onclick="correction()">Score correction</button><button onclick="disconnect()">Toggle Wi-Fi outage</button><button onclick="reset()">Reboot</button><p>Mock WLED: <span class="light" id="light"></span> <span id="lightlabel">Original scene</span></p><p><label>Custom WAV (local only): <input type="file" id="wavInput" accept=".wav,audio/wav"></label>
+<button onclick="loadCustom()">Assign WAV to <span id="uploadTeam">UTA</span></button></p>
+<p id="customStatus">No custom file selected. Mono PCM 16-kHz, 16-bit WAV, up to 10 seconds.</p>
+<h3>Mock event log</h3><pre id="log"></pre><p>This browser demo uses only fake NHL scores and mock WLED states; sounds play locally when explicitly enabled. It does not connect to NHL or send real WLED commands. The PlatformIO C++ simulator and Unity tests validate the actual scheduling logic separately.</p></section></main>
 <script>
-let s,t;const $=id=>document.getElementById(id);const log=m=>{$('log').textContent+=m+'\n';$('log').scrollTop=99999};
-function reset(){clearTimeout(t);s={page:'scores',away:1,home:0,armed:false,delay:0,mode:'away',online:true,selected:false,pending:false,active:false,color:'#bd8651'};$('log').textContent='';log('Reboot → disarmed; original WLED untouched');render()}
-function cancel(){clearTimeout(t);if(s.pending)log('Cancelled delayed goal');if(s.active)log('Auto scene → original restored');s.pending=false;s.active=false;s.color='#bd8651'}
+let s,t;const $=id=>document.getElementById(id);
+let audioCtx=null,oscillators=[],customBuffers={UTA:null,BOS:null},audioConsent=false,activeNode=null;
+function stopAudio(){
+  oscillators.forEach(o=>{try{o.stop()}catch(e){}try{o.disconnect()}catch(e){}});
+  oscillators=[];if(activeNode){try{activeNode.stop()}catch(e){}activeNode=null}
+}
+function startAudio(){
+  try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume();audioConsent=true;return true}
+  catch(e){log('Audio output unavailable in this browser');return false}
+}
+function soundName(k){return ['OFF','HORN 1','HORN 2','HORN 3','CUSTOM WAV'][k]||'OFF'}
+function cycleSound(team){s.sound[team]=(s.sound[team]+1)%5;render()}
+function changeVol(d){s.volume=Math.max(0,Math.min(100,s.volume+d));render()}
+function toggleSound(){s.audio=!s.audio;if(!s.audio)stopAudio();else startAudio();log('Audio '+(s.audio?'enabled':'muted'));render()}
+function playSound(team,preview=false){
+  if(!preview&&!s.audio)return;
+  if(!startAudio())return;
+  const kind=s.sound[team],volume=s.volume/100;
+  if(kind===0||volume===0)return;
+  stopAudio();
+  if(kind===4&&customBuffers[team]){
+    const src=audioCtx.createBufferSource(),gain=audioCtx.createGain();
+    src.buffer=customBuffers[team];gain.gain.value=volume*0.22;
+    src.connect(gain);gain.connect(audioCtx.destination);src.start();activeNode=src;return;
+  }
+  if(kind===4)log('Custom WAV missing; falling back to built-in horn');
+  const k=kind===4?1:kind,t0=audioCtx.currentTime;
+  const gain=audioCtx.createGain();
+  gain.gain.setValueAtTime(.0001,t0);
+  gain.gain.linearRampToValueAtTime(volume*.13,t0+.12);
+  gain.gain.setValueAtTime(volume*.13,t0+1.8);
+  gain.gain.linearRampToValueAtTime(.0001,t0+2.35);
+  gain.connect(audioCtx.destination);
+  const hz=k===1?[196,247,294]:k===2?[247,294,370]:[330,440,550];
+  hz.forEach((f,i)=>{const o=audioCtx.createOscillator();o.type=i===0?'sawtooth':'triangle';o.frequency.setValueAtTime(f,t0);
+    if(k===3)o.frequency.linearRampToValueAtTime(f*1.2,t0+1.5);
+    o.connect(gain);o.start(t0);o.stop(t0+2.45);oscillators.push(o)});
+  log('Browser preview '+team+': '+soundName(kind)+' at '+s.volume+'%');
+}
+function soundPreview(team){if(!s.audio){log('Enable sound first');render();return}playSound(team,true);render()}
+async function loadCustom(){
+  const file=$('wavInput').files[0],team=s.uploadTeam;if(!file){log('Select a local WAV file first');return}
+  if(file.size>320044||file.size<44){log('WAV outside 1–10 second size limit');return}
+  try {
+    const raw=await file.arrayBuffer(), view=new DataView(raw);
+    const str=(start,n)=>Array.from(new Uint8Array(raw,start,n)).map(x=>String.fromCharCode(x)).join('');
+    if(str(0,4)!=='RIFF'||str(8,8)!=='WAVEfmt '||str(36,4)!=='data'||
+      view.getUint32(16,true)!==16||view.getUint16(20,true)!==1||
+      view.getUint16(22,true)!==1||view.getUint32(24,true)!==16000||
+      view.getUint32(28,true)!==32000||view.getUint16(32,true)!==2||
+      view.getUint16(34,true)!==16||view.getUint32(40,true)>file.size-44)
+        throw Error('WAV must be canonical mono PCM 16-kHz, 16-bit');
+    if(!startAudio())return;
+    customBuffers[team]=await audioCtx.decodeAudioData(raw.slice(0));
+    s.sound[team]=4;$('customStatus').textContent=team+' custom file loaded locally: '+file.name;
+    log('Loaded '+team+' custom WAV; file is not uploaded');render();
+  }catch(e){log('WAV rejected: '+e.message)}
+}
+function selectUploadTeam(team){s.uploadTeam=team;render()}
+const log=m=>{$('log').textContent+=m+'\n';$('log').scrollTop=99999};
+function reset(){clearTimeout(t);stopAudio();s={page:'scores',away:1,home:0,armed:false,delay:0,mode:'away',online:true,selected:false,pending:false,active:false,color:'#bd8651',audio:false,volume:50,sound:{UTA:1,BOS:1},uploadTeam:'UTA'};$('log').textContent='';log('Reboot → disarmed; original WLED untouched');render()}
+function cancel(){stopAudio();clearTimeout(t);if(s.pending)log('Cancelled delayed goal');if(s.active)log('Auto scene → original restored');s.pending=false;s.active=false;s.color='#bd8651'}
 function goal(home){
  if(!s.online){log('Offline: no fresh NHL goal');return}
  if(home)s.home++;else s.away++;
@@ -18,8 +83,9 @@ function goal(home){
    if(!s.armed||!s.online){cancel();render();return}
    s.pending=false;s.active=true;s.color=home?'#ffb81c':'#6cace4';
    log('WLED snapshot → '+(home?'BOS gold':'UTA blue'));
+   if(s.audio)playSound(home?'BOS':'UTA');
    render();t=setTimeout(()=>{
-     s.active=false;s.color='#bd8651';log('Original WLED scene restored');render()
+     s.active=false;s.color='#bd8651';stopAudio();log('Original WLED scene restored');render()
    },8000)
  },s.delay*1000);render()
 }
@@ -37,10 +103,17 @@ function delay(x){
  cancel();s.delay=Math.min(90,Math.max(0,s.delay+x));log('TV delay '+s.delay+'s');render()
 }
 function arm(){if(s.armed){cancel();s.armed=false;log('Disarmed')}else if(s.selected&&s.online){s.armed=true;log('Armed on LIVE UTA @ BOS')}else log('Select a game and connect Wi-Fi first');render()}
-function render(){const names={scores:'NHL',game:'GAME',lights:'WLED',setup:'STATUS'};$('title').textContent=names[s.page];$('wifi').textContent=s.online?'WiFi':'OFFLINE';$('tabs').innerHTML=Object.keys(names).map(k=>`<button class="${s.page===k?'':'dim'}" onclick="tab('${k}')">${k==='game'?'GAME':k.toUpperCase()}</button>`).join('');$('light').style.background=s.color;$('lightlabel').textContent=s.active?'GOAL scene':'Previous / manually set scene';let b='';
+function render(){const names={scores:'NHL',game:'GAME',lights:'WLED',setup:'STATUS',audio:'SOUND'};$('title').textContent=names[s.page];$('wifi').textContent=s.online?'WiFi':'OFFLINE';$('tabs').innerHTML=Object.keys(names).map(k=>`<button class="${s.page===k?'':'dim'}" onclick="tab('${k}')">${k==='game'?'GAME':k.toUpperCase()}</button>`).join('');$('light').style.background=s.color;$('lightlabel').textContent=s.active?'GOAL scene':'Previous / manually set scene';let b='';
 if(s.page==='scores')b=`<p style="margin:0 0 4px">NHL games • Today <span style="float:right">‹ &nbsp;›</span></p><button class="panel selected" style="width:100%;text-align:left" onclick="selectGame()">UTA @ BOS &nbsp;&nbsp; ${s.away}–${s.home} &nbsp; LIVE</button><div class="panel">COL @ DAL &nbsp;&nbsp; 0–0 &nbsp; PRE</div><div class="panel">NYR @ NJD &nbsp;&nbsp; 3–1 &nbsp; FINAL</div>`;
 if(s.page==='game')b=s.selected?`<div class="score">UTA ${s.away} : ${s.home} BOS</div><div class="center muted">LIVE • period 2</div><div class="actions"><span>CELEBRATE</span><button class="${s.mode==='away'?'':'dim'}" onclick="chooseMode('away')">UTA</button><button class="${s.mode==='home'?'':'dim'}" onclick="chooseMode('home')">BOS</button><button class="${s.mode==='both'?'':'dim'}" onclick="chooseMode('both')">BOTH</button></div><div class="actions">TV DELAY <button class="dim" onclick="delay(-15)">−</button><b>${s.delay}s</b><button class="dim" onclick="delay(15)">+</button></div><button style="width:100%" class="${s.armed?'':'dim'}" onclick="arm()">${s.active?'GOAL LIGHTS ACTIVE':s.armed?'DISARM GOALS':'ARM GOAL LIGHTS'}</button>${s.pending?'<div class="center">Goal waiting for TV delay</div>':''}`:'<div class="center muted" style="padding-top:50px">Choose a game on SCORES first</div>';
 if(s.page==='lights')b=`<div class="panel selected">Fireplace <span style="color:#90f4b0">●</span><div class="muted">192.168.1.71 (fake)</div></div><div class="actions" style="margin-top:55px"><button onclick="cancel();s.armed=false;s.color='#6cace4';log('Manual UTA');render()">AWAY</button><button onclick="cancel();s.armed=false;s.color='#ffb81c';log('Manual BOS');render()">HOME</button><button class="dim" onclick="cancel();s.armed=false;s.color='#101e24';render()">OFF</button><button class="dim" onclick="note('Fake discovery found Fireplace')">SCAN</button></div>`;
-if(s.page==='setup')b=`<div class="panel">Wi-Fi &nbsp; ${s.online?'192.168.1.50':'Offline'}</div><div class="panel">NHL API &nbsp; ${s.online?'Connected':'Offline'}</div><div class="muted" style="padding:8px">Configure WLED: http://192.168.1.50</div><button style="width:100%" onclick="note('Mock NHL refresh')">REFRESH SCORES</button>`;$('body').innerHTML=b}
+if(s.page==='setup')b=`<div class="panel">Wi-Fi &nbsp; ${s.online?'192.168.1.50':'Offline'}</div><div class="panel">NHL API &nbsp; ${s.online?'Connected':'Offline'}</div><div class="muted" style="padding:8px">Configure WLED: http://192.168.1.50</div><button style="width:100%" onclick="note('Mock NHL refresh')">REFRESH SCORES</button>`;
+if(s.page==='audio')b=`<div class="actions">SOUND <button onclick="toggleSound()" class="${s.audio?'':'dim'}">${s.audio?'ON':'OFF'}</button> VOL <button class="dim" onclick="changeVol(-10)">−</button>${s.volume}%<button class="dim" onclick="changeVol(10)">+</button></div>
+<div class="actions">AWAY <button class="dim" onclick="cycleSound('UTA')">${soundName(s.sound.UTA)} ›</button><button onclick="soundPreview('UTA')">▶</button></div>
+<div class="actions">HOME <button class="dim" onclick="cycleSound('BOS')">${soundName(s.sound.BOS)} ›</button><button onclick="soundPreview('BOS')">▶</button></div>
+<div class="center muted">Custom WAV: select team below</div>
+<div class="actions"><button class="${s.uploadTeam==='UTA'?'':'dim'}" onclick="selectUploadTeam('UTA')">UTA WAV</button><button class="${s.uploadTeam==='BOS'?'':'dim'}" onclick="selectUploadTeam('BOS')">BOS WAV</button></div>`;
+$('body').innerHTML=b;
+$('uploadTeam').textContent=s.uploadTeam}
 function note(m){log(m)}reset();
 </script></body></html>
