@@ -1,6 +1,8 @@
 package com.gkowdeck.gameday.firetv;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.os.Build;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -13,7 +15,6 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -28,42 +29,45 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Leanback-friendly native TV test console. No WebView, service, login, or external backend. */
+/** Leanback TV UI. Foreground service handles monitoring independently of the Activity. */
 public final class MainActivity extends Activity {
     private static final int BG=Color.rgb(9,19,23), PANEL=Color.rgb(26,46,54), TEAL=Color.rgb(49,131,122);
     private static final int WHITE=Color.rgb(241,249,250), MUTED=Color.rgb(169,192,199), BLUE=Color.rgb(108,172,228), GOLD=Color.rgb(255,184,28);
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private final Handler ui=new Handler(Looper.getMainLooper());
-    private final GoalTracker goals=new GoalTracker();
     private LinearLayout root,nav,body; private TextView status,notice;private EditText ipEntry;
     private SharedPreferences prefs;
     private NhlApi.Board board; private NhlApi.Game selected;
     private final List<String> lines=new ArrayList<>();
     private List<NhlApi.Play> recentPlays=new ArrayList<>();
-    private int page=0,delaySec=0;private boolean favoriteHome=false,armed=false,armPending=false;
+    private int page=0,delaySec=0;private boolean favoriteHome=false;private String serviceState="";
     private boolean wledConnected=false,scoreBusy=false,pbpBusy=false,resumed=false,previewActive=false,restoreBusy=false;
     private String wledIp="192.168.1.71",wledName="Not connected",fetchStatus="Not checked",lastScoreAt="Never";
-    private long lastScoresMs=0,lastPbpMs=0,lastEffectMs=0;
-    private Runnable pendingGoal,scheduledRestore;
+    private long lastScoresMs=0,lastPbpMs=0;
+    private Runnable scheduledRestore;
     private final Runnable tick=new Runnable(){public void run(){
         if(!resumed)return;
         long now=System.currentTimeMillis();
         if(now-lastScoresMs>60000)refreshScores(false);
-        if(armed && selected!=null && selected.live() && now-lastPbpMs>=25000)checkPlays(false);
+        String current=monitorStatus();
+        if(!current.equals(serviceState)){serviceState=current;render();}
         ui.postDelayed(this,1000);
     }};
 
     @Override public void onCreate(Bundle state){
-        super.onCreate(state);getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        super.onCreate(state);
+        if(Build.VERSION.SDK_INT>=33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1001);
+        }
         prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.1 started. Automatic goal lighting DISARMED.");
+        log("GameDay Fire TV v0.2 started. Background monitoring is opt-in.");
         buildShell();render();
-        if(hasJournal()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
+        if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
-    @Override protected void onResume(){super.onResume();resumed=true;ui.removeCallbacks(tick);ui.post(tick);}
-    @Override protected void onStop(){resumed=false;ui.removeCallbacks(tick);disarm("App left foreground");super.onStop();}
-    @Override protected void onDestroy(){ui.removeCallbacks(tick);if(pendingGoal!=null)ui.removeCallbacks(pendingGoal);if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);io.shutdown();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();resumed=true;ui.removeCallbacks(tick);serviceState="";ui.post(tick);}
+    @Override protected void onStop(){resumed=false;ui.removeCallbacks(tick);/* Foreground service keeps monitoring. */super.onStop();}
+    @Override protected void onDestroy(){ui.removeCallbacks(tick);if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);io.shutdown();super.onDestroy();}
 
     private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private GradientDrawable shape(int fill,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(12));if(stroke!=0)d.setStroke(dp(2),stroke);return d;}
@@ -100,7 +104,7 @@ public final class MainActivity extends Activity {
         String focusedTag=null;View focus=getCurrentFocus();
         if(focus!=null&&focus.getTag() instanceof String)focusedTag=(String)focus.getTag();
         nav.removeAllViews();body.removeAllViews();
-        status.setText("NHL: "+fetchStatus+"   |   WLED: "+(wledConnected?wledName:"not connected"));
+        status.setText("NHL: "+fetchStatus+"   |   MONITOR: "+monitorStatus());
         String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","LOG / HELP"};
         for(int i=0;i<names.length;i++){final int idx=i;Button b=action(names[i],page==i,()->{page=idx;render();});
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(57),1);p.setMargins(0,0,dp(9),0);nav.addView(b,p);}
@@ -121,17 +125,23 @@ public final class MainActivity extends Activity {
     }
     private void pageGame(){
         heading("GAME / PLAY-BY-PLAY");
-        if(selected==null){card("Select an NHL game","Go to NHL SCORES and press SELECT on a matchup to track it.");return;}
+        if(selected==null){
+            if(GameDayService.isRunning()){
+                card("Monitoring in background",monitorStatus()+" • "+monitorDetail());
+                LinearLayout stop=row();buttons(stop,action("STOP BACKGROUND MONITOR",true,()->disarm("Stop requested")));body.addView(stop);
+            } else card("Select an NHL game","Go to NHL SCORES and press SELECT on a matchup to track it.");
+            return;
+        }
         card(selected.matchup()+"    "+selected.score(),selected.status()+"   •   Game ID "+selected.id);
         LinearLayout tools=row();buttons(tools,action("FETCH GAME EVENTS",true,()->checkPlays(false)),action("CHANGE GAME",false,()->{page=0;render();}));body.addView(tools);
         heading("Choose team for goal lighting");LinearLayout sides=row();
         buttons(sides,action("AWAY: "+selected.away,!favoriteHome,()->chooseSide(false)),action("HOME: "+selected.home,favoriteHome,()->chooseSide(true)));body.addView(sides);
         subtitle("TV stream delay: "+delaySec+" seconds (in 15s steps)");LinearLayout delays=row();
         buttons(delays,action("− 15s",false,()->setDelay(-15)),action("+ 15s",false,()->setDelay(15)));body.addView(delays);
-        card("Live reaction status",armed?"ARMED • unique new NHL goal events only • starts with baseline":armPending?"Checking NHL goal baseline and WLED before arming...":"DISARMED (default after launch/restart)");
+        card("Background monitoring",monitorStatus()+"  •  "+monitorDetail());
         LinearLayout armTools=row();
-        buttons(armTools,action(armed?"DISARM GOALS":armPending?"ARMING…":"ARM LIVE GOALS",armed,()->{if(armed||armPending)disarm("User pressed disarm");else arm();render();}));body.addView(armTools);
-        subtitle("Arming fetches a play-by-play baseline first. No replayed/old goals. One WLED target, static color, 8-second restore; no strobe.");
+        buttons(armTools,action(GameDayService.isRunning()?"STOP BACKGROUND MONITOR":"ARM IN BACKGROUND",GameDayService.isRunning(),()->{if(GameDayService.isRunning())disarm("Stop requested");else arm();render();}));body.addView(armTools);
+        subtitle("Start here, then press HOME and watch YouTube TV/ESPN/Prime. Monitor continues as a foreground service until STOP, game final, or system stop. Baselines ignore older goals.");
         if(!recentPlays.isEmpty()){
             heading("Recent NHL events");int start=Math.max(0,recentPlays.size()-12);
             for(int i=recentPlays.size()-1;i>=start;i--){NhlApi.Play p=recentPlays.get(i);
@@ -148,7 +158,7 @@ public final class MainActivity extends Activity {
         ipEntry.setTag("wled-ip");iprow.addView(ipEntry,new LinearLayout.LayoutParams(dp(310),dp(57)));
         Button connect=action("SAVE IP + CONNECT",true,()->connectWled());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(57));cp.setMargins(dp(12),0,0,0);iprow.addView(connect,cp);
         body.addView(txt("Device: "+wledName+"  •  "+(wledConnected?"Connected":"Disconnected"),17,wledConnected?BLUE:MUTED,true));
-        if(hasJournal()){card("RECOVERY REQUIRED","A previous preview hasn't been restored. New previews are blocked until restoration succeeds.");}
+        if(hasJournal() && !GameDayService.isRunning()){card("RECOVERY REQUIRED","A previous preview hasn't been restored. New previews are blocked until restoration succeeds.");}
         LinearLayout opts=row();
         Button btnAway=action(selected==null?"TEST UTA BLUE  (8s)":"PREVIEW AWAY COLOR  (8s)",false,()->preview(false));
         Button btnHome=action(selected==null?"TEST BOS GOLD  (8s)":"PREVIEW HOME COLOR  (8s)",false,()->preview(true));
@@ -159,16 +169,16 @@ public final class MainActivity extends Activity {
         subtitle("Only RFC1918 private IPv4 addresses are accepted. No discovery or cloud relay. Never forward your WLED port to the internet.");
     }
     private void pageLog(){
-        heading("CONNECTION / EVENT LOG");subtitle("The latest API errors, WLED commands and goal decisions appear here.");
+        heading("CONNECTION / EVENT LOG");subtitle("The NHL/API diagnostic log is visible here. Background monitor state: "+monitorStatus()+". For background detail use adb logcat -s GlowDeckMonitor.");
         LinearLayout tools=row();buttons(tools,action("REFRESH SCORES",true,()->refreshScores(true)),action("CLEAR LOG",false,()->{lines.clear();log("Log cleared");render();}));body.addView(tools);
         for(int i=lines.size()-1;i>=0;i--)body.addView(txt(lines.get(i),16,MUTED,false));
         heading("Installation / safety");
-        subtitle("- Use D-pad + SELECT; keyboard appears when editing WLED IP.\n- Any app exit disarms goal monitoring.\n- NHL API is public and best-effort.\n- A live NHL game is required for arming.\n- Goal events are monitored every 25 seconds after a safe baseline; delayed by your chosen TV delay.\n- Goal color is solid (no flashing), restored after 8 seconds.\n- Actual lights are controlled only when you preview or explicitly ARM.\n- If restore fails, open WLED tab and press RESTORE; recovery also retries on next launch.\n- If a new APK has a different debug signature, uninstall the previous test app before upgrading.");
+        subtitle("- Select LIVE NHL game and connected WLED, then ARM IN BACKGROUND.\n- Press HOME to watch a streaming app; foreground service keeps polling.\n- The ongoing notification has a STOP monitoring action.\n- Return to GameDay and press STOP to end. Reboot/force-stop does not re-arm.\n- NHL play-by-play polling: 25s; feed errors pause then re-baseline.\n- Favorite goal shows solid color 8s; WLED scene is journaled and restored.\n- If restore fails, stop and open WLED tab to retry; never use safety-critical lights.\n- Fire OS memory/sleep restrictions may stop the service; verify on your own Fire TV.");
     }
     private void log(String m){String stamp=DateFormat.getTimeInstance(DateFormat.MEDIUM,Locale.US).format(new Date());lines.add(stamp+"  "+m);if(lines.size()>70)lines.remove(0);android.util.Log.i("GlowDeckGameDay",m);}
-    private void chooseGame(NhlApi.Game g){disarm("Game selection changed");selected=g;recentPlays.clear();goals.reset();page=1;log("Selected "+g.matchup()+" "+g.id);render();}
-    private void chooseSide(boolean home){if(home!=favoriteHome){disarm("Favorite side changed");favoriteHome=home;}render();}
-    private void setDelay(int delta){disarm("Delay changed");delaySec=Math.max(0,Math.min(90,delaySec+delta));prefs.edit().putInt("delaySec",delaySec).apply();render();}
+    private void chooseGame(NhlApi.Game g){if(denyChangeWhileMonitoring())return;selected=g;recentPlays.clear();page=1;log("Selected "+g.matchup()+" "+g.id);render();}
+    private void chooseSide(boolean home){if(denyChangeWhileMonitoring())return;favoriteHome=home;render();}
+    private void setDelay(int delta){if(denyChangeWhileMonitoring())return;delaySec=Math.max(0,Math.min(90,delaySec+delta));prefs.edit().putInt("delaySec",delaySec).apply();render();}
     private interface Work<T>{T run()throws Exception;}
     private interface Result<T>{void ok(T x);}
     private <T>void job(String name,Work<T> fn,Result<T> done){io.execute(()->{
@@ -179,17 +189,15 @@ public final class MainActivity extends Activity {
         io.execute(()->{
             try{NhlApi.Board incoming=NhlApi.scores();ui.post(()->{
                 scoreBusy=false;board=incoming;fetchStatus="online";lastScoreAt=incoming.date+" • "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date());
-                if(selected!=null){boolean found=false;for(NhlApi.Game g:incoming.games)if(g.id==selected.id){selected=g;found=true;break;}
-                    if(!found && armed)disarm("Selected game absent from NHL scores");
-                    if(armed&&selected!=null&&!selected.live())disarm("Selected game no longer live");}
+                if(selected!=null){for(NhlApi.Game g:incoming.games)if(g.id==selected.id){selected=g;break;}}
                 if(manual)log("NHL score API OK: "+incoming.games.size()+" games for "+incoming.date);
                 render();
-            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;fetchStatus="error";log("NHL scores ERROR: "+err);if(armed)disarm("Score feed error");render();});}
+            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;fetchStatus="error";log("NHL scores ERROR: "+err);render();});}
         });
     }
     private String currentIp(){return ipEntry==null?wledIp:ipEntry.getText().toString().trim();}
-    private void connectWled(){String ip=currentIp();if(!AddressValidator.isPrivateLanIpv4(ip)){log("Invalid WLED IP: private LAN IPv4 only");render();return;}
-        disarm("WLED device changed");wledIp=ip;wledConnected=false;wledName="Connecting...";
+    private void connectWled(){if(denyChangeWhileMonitoring())return;String ip=currentIp();if(!AddressValidator.isPrivateLanIpv4(ip)){log("Invalid WLED IP: private LAN IPv4 only");render();return;}
+        wledIp=ip;wledConnected=false;wledName="Connecting...";
         prefs.edit().putString("wledIp",wledIp).apply();render();
         job("WLED connection",()->WledApi.info(ip),info->{wledConnected=true;wledName=info.optString("name",ip)+" (v"+info.optString("ver","?")+")";
             log("WLED API OK at "+ip);render();});
@@ -201,6 +209,7 @@ public final class MainActivity extends Activity {
         startPreview(team,NhlApi.teamColor(team));
     }
     private void startPreview(String team,int rgb){
+        if(denyChangeWhileMonitoring())return;
         if(hasJournal()||previewActive||restoreBusy){log("Preview blocked until prior state restored");render();return;}
         if(!wledConnected){log("Connect to WLED in LIGHTS first");render();return;}
         String ip=wledIp;previewActive=true;log("Preparing "+team+" preview; capturing WLED state first");render();
@@ -218,6 +227,7 @@ public final class MainActivity extends Activity {
         });
     }
     private void restoreWled(){
+        if(GameDayService.isRunning()){log("Monitoring active. STOP first, then restore if needed.");render();return;}
         if(!hasJournal()){previewActive=false;log("No outstanding restore journal");render();return;}
         if(restoreBusy)return;
         restoreBusy=true;
@@ -232,59 +242,52 @@ public final class MainActivity extends Activity {
                 log("RESTORE FAILED; state retained for recovery: "+msg);render();});}
         });
     }
+    private String monitorStatus(){
+        if(GameDayService.isStopping())return "STOPPING";
+        if(!GameDayService.isRunning())return "STOPPED";
+        return getSharedPreferences("gameday-monitor",MODE_PRIVATE).getString("mode","STARTING");
+    }
+    private String monitorDetail(){
+        return getSharedPreferences("gameday-monitor",MODE_PRIVATE).getString("detail","No active session");
+    }
+    private boolean denyChangeWhileMonitoring(){
+        if(!GameDayService.isRunning() && !GameDayService.isStopping())return false;
+        log("Stop background monitoring before changing a game, delay, WLED IP or manual scene");render();return true;
+    }
     private void disarm(String reason){
-        boolean was=armed||armPending;armed=false;armPending=false;goals.reset();
-        if(pendingGoal!=null){ui.removeCallbacks(pendingGoal);pendingGoal=null;}
-        if(was)log("DISARMED: "+reason);
-        if(hasJournal()&&!restoreBusy)restoreWled();
+        if(!GameDayService.isRunning())return;
+        log("Stopping foreground monitor: "+reason);
+        Intent i=new Intent(this,GameDayService.class).setAction(GameDayService.STOP);
+        startService(i);
+        render();
     }
     private void arm(){
-        if(selected==null||!selected.live()){log("Arm requires a selected LIVE NHL game");render();return;}
-        if(!wledConnected || hasJournal()||previewActive){log("Arm requires connected WLED and no pending restore");render();return;}
-        if(armPending)return;
-        armPending=true;goals.reset();checkPlays(true);render();
+        if(GameDayService.isRunning()||GameDayService.isStopping())return;
+        if(selected==null||!selected.live()){log("Select a LIVE NHL game before monitoring");render();return;}
+        if(!wledConnected||!AddressValidator.isPrivateLanIpv4(wledIp)||hasJournal()||previewActive){
+            log("Connect a valid WLED device; finish any pending scene restore first");render();return;
+        }
+        Intent i=new Intent(this,GameDayService.class).setAction(GameDayService.START)
+                .putExtra("gameId",selected.id).putExtra("away",selected.away)
+                .putExtra("home",selected.home).putExtra("wledIp",wledIp)
+                .putExtra("favoriteHome",favoriteHome).putExtra("delaySec",delaySec);
+        try {
+            if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);
+            log("Background goal monitoring requested. Switch to your streaming app after ARMED appears.");
+        }catch(Exception e){log("Unable to start foreground monitor: "+e.getMessage());}
+        render();
     }
-    private void checkPlays(boolean initial){
-        if(pbpBusy || selected==null)return;
-        pbpBusy=true;lastPbpMs=System.currentTimeMillis();final long gameId=selected.id;
-        io.execute(()->{try{
-            NhlApi.Pbp incoming=NhlApi.plays(gameId);
-            ui.post(()->{
-                pbpBusy=false;if(selected==null||selected.id!=gameId)return;
-                recentPlays=incoming.plays;
-                List<GoalTracker.Event> ev=new ArrayList<>();
-                for(NhlApi.Play p:incoming.plays)if(p.eventId>0)ev.add(new GoalTracker.Event(p.eventId,p.ownerId,p.goal()));
-                if(initial){if(!armPending)return;
-                    if(incoming.awayId==0||incoming.homeId==0){armPending=false;log("Cannot arm: NHL team IDs missing");render();return;}
-                    goals.update(ev);armed=true;armPending=false;
-                    log("ARMED after PBP baseline ("+incoming.plays.size()+" plays); waiting for a NEW favorite-team goal");
-                }else if(armed){
-                    if(incoming.awayId==0||incoming.homeId==0){disarm("NHL owner team IDs unavailable");render();return;}
-                    int owner=goals.update(ev),favoriteId=favoriteHome?incoming.homeId:incoming.awayId;
-                    if(owner>0){
-                        if(owner==favoriteId)queueGoal(selected,gameId);
-                        else log("Opponent goal # detected; no selected-team reaction");
-                    }
-                }else goals.update(ev); // read-only fetch creates no armed event
-                if(!initial)log("NHL PBP OK: "+incoming.plays.size()+" plays; "+incoming.homeId+" / "+incoming.awayId);
-                render();
-            });
-        }catch(Exception e){String m=e.getMessage();ui.post(()->{
-            pbpBusy=false;armPending=false;if(armed)disarm("NHL PBP request error");
-            log("NHL PBP error: "+m);render();});}
+    private void checkPlays(boolean ignored){
+        if(pbpBusy||selected==null)return;
+        pbpBusy=true;lastPbpMs=System.currentTimeMillis();long id=selected.id;
+        io.execute(()->{
+            try{
+                NhlApi.Pbp incoming=NhlApi.plays(id);
+                ui.post(()->{pbpBusy=false;if(selected!=null&&selected.id==id){
+                    recentPlays=incoming.plays;
+                    log("NHL PBP OK: "+incoming.plays.size()+" plays • read-only");render();
+                }});
+            }catch(Exception e){String err=e.getMessage();ui.post(()->{pbpBusy=false;log("PBP: "+err);render();});}
         });
-    }
-    private void queueGoal(NhlApi.Game g,long expectedGame){
-        long now=System.currentTimeMillis();
-        if(!armed||hasJournal()||previewActive||pendingGoal!=null||now-lastEffectMs<20000){log("Goal ignored: busy / recovery / cooldown");return;}
-        String team=favoriteHome?g.home:g.away;int color=NhlApi.teamColor(team);
-        log("NEW NHL "+team+" goal! Scheduled WLED in "+delaySec+" seconds");
-        pendingGoal=()->{
-            pendingGoal=null;
-            if(armed&&selected!=null&&selected.id==expectedGame&&selected.live()&&!hasJournal()){
-                lastEffectMs=System.currentTimeMillis();startPreview(team,color);
-            }else {log("Scheduled goal dropped: no longer armed/live");render();}
-        };
-        ui.postDelayed(pendingGoal,delaySec*1000L);
     }
 }

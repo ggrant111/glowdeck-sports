@@ -20,36 +20,34 @@ jobs:
           java-version: '17'
       - name: Install Android SDK platform (using runner SDK)
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           SDKMGR=$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | head -n 1)
           test -x "$SDKMGR"
           "$SDKMGR" --install 'platforms;android-35' 'build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Native JVM tests and assemble APK
+      - name: JVM tests and assemble APK
         working-directory: firetv
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
-      - name: Verify signed APK and compute checksum
+      - name: Verify APK and checksum
         run: |
           test -s firetv/app/build/outputs/apk/debug/app-debug.apk
-          sha256sum firetv/app/build/outputs/apk/debug/app-debug.apk | tee firetv-apk.sha256
+          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.2.apk
+          sha256sum GlowDeck-GameDay-FireTV-v0.2.apk > firetv-v0.2.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-FireTV-v0.1-debug-APK
+          name: GlowDeck-GameDay-FireTV-v0.2-debug-APK
           path: |
-            firetv/app/build/outputs/apk/debug/app-debug.apk
-            firetv-apk.sha256
+            GlowDeck-GameDay-FireTV-v0.2.apk
+            firetv-v0.2.sha256
           retention-days: 90
-      - name: Publish prerelease sideloadable APK
+      - name: Publish standalone Fire TV v0.2 test release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=firetv-v0.1.0-test
+          TAG=firetv-v0.2.0-test
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.1 (test)' --prerelease --latest=false \
-              --notes 'NHL/WLED diagnostic Fire TV app. This APK uses a CI DEBUG signature that can change between builds. Uninstall the prior test build before installing an updated APK if the signature differs. No automatic goal reactions until explicitly armed.'
+            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.2 (background monitoring test)' --prerelease --latest=false \
+              --notes 'Foreground-service NHL goal polling while watching other apps, persistent STOP notification, WLED scene recovery. Opt-in only; not hardware verified. Release uses an ephemeral CI debug key; you may need to uninstall v0.1 first.'
           fi
-          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.1.apk
-          gh release delete-asset "$TAG" app-debug.apk -y || true
-          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.1.apk firetv-apk.sha256 --clobber
+          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.2.apk firetv-v0.2.sha256 --clobber

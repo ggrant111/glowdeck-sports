@@ -1,47 +1,51 @@
-# GlowDeck GameDay — Fire TV Lab v0.1
+# GlowDeck GameDay Fire TV v0.2 — background monitoring test
 
-A **native Fire TV / Android TV test application** for testing the public NHL API and real local WLED devices *before* the ESP32-2432S028R touchscreen arrives. No Lovable bridge, WebView, PC server or account is needed once the APK is sideloaded. Compatible with Fire OS/Android APIs 22+; D-pad SELECT navigation with a Leanback launcher and 320x180 TV banner.
+**A native, remote-controlled Amazon Fire TV / Android TV NHL + WLED test application.** This release introduces an opt-in Android **foreground service** that continues NHL play-by-play polling and controlling local WLED lights while the Fire TV displays YouTube TV, ESPN, Prime Video, or another app. No desktop server and no ESP32 are needed once the APK is installed.
 
-## Download the APK
+**[Download the Fire TV v0.2 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk)** · [Release page](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.2.0-test) · [Project roadmap](../PROJECT_PLAN.md)
 
-**[Download Fire TV test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.1.0-test/GlowDeck-GameDay-FireTV-v0.1.apk)** from the [verified prerelease](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). Download the `.apk`, not the source ZIP. Build/tests: [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341). Alternatively visit **GitHub Actions → Fire TV test APK → most recent successful run → Artifacts**.
+## Install by ADB
 
-Build from source (Android Studio): open this `firetv/` directory as a standalone Android project. Requires Android SDK 35, JDK 17, Android Gradle Plugin 8.5.2. Use `gradle :app:assembleDebug`; the APK is at `app/build/outputs/apk/debug/app-debug.apk`. Native tests `gradle :app:testDebugUnitTest`.
-
-## Sideload to your Fire TV
-
-1. On the Fire TV, enable **Developer Options** and **ADB debugging** (and permit installing unknown apps where necessary). Put the Fire TV on the same home Wi-Fi as your PC and WLED device.
-2. Find its IP in **Settings → My Fire TV → About → Network**.
-3. From the PC with Android platform-tools installed:
+1. Enable ADB debugging on Fire TV. Put the Fire TV and WLED on the same reachable trusted network.
+2. Download `GlowDeck-GameDay-FireTV-v0.2.apk` to your computer. On Windows with ADB:
 
    ```powershell
    adb connect 192.168.1.24
-   adb install -r GlowDeck-GameDay-FireTV-v0.1.apk
+   adb install -r GlowDeck-GameDay-FireTV-v0.2.apk
    adb shell am start -n com.gkowdeck.gameday.firetv/.MainActivity
    ```
 
-   **Replace `192.168.1.24` with your current Fire TV IP**; it was only a previously used example. If a debug-signature mismatch reports `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, remove the previous lab build first via `adb uninstall com.gkowdeck.gameday.firetv` (you will lose saved device IP/delay settings), then install again. This is test signing, not production signing.
-4. Open **GlowDeck GameDay** on your Apps screen, or launch using the last ADB command.
+   Replace `192.168.1.24` with **your Fire TV's current IP**. The app package is unchanged from v0.1. Because GitHub builds use an ephemeral debug signing key, an update can fail `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. In that case use `adb uninstall com.gkowdeck.gameday.firetv` **and then reinstall**; this clears saved WLED settings.
 
-## On-TV test procedure
+## Test in order
 
-1. **NHL SCORES** → press **REFRESH NHL**. Expect today's slate and live/final/upcoming statuses. A no-game day is valid. If an error appears, open **LOG / HELP** for HTTP/SSL details.
-2. Select an NHL matchup using the D-pad and center Select; this opens **GAME / EVENTS**. Press **FETCH GAME EVENTS** and inspect numbered NHL play-by-play events. For a game that hasn't started, plays may be empty.
-3. Open **WLED LIGHTS**, enter the device's IPv4 address (for example the known Fireplace at `192.168.1.71`, **if unchanged**), then **SAVE IP + CONNECT**. The app reads `GET http://<ip>/json/info` and confirms its WLED version/name.
-4. **Even on a day with no NHL games**, you can preview Utah blue or Boston gold with the fallback test buttons. Press **READ WLED STATE**; verify on/brightness/segment count in LOG. Then press **PREVIEW AWAY COLOR (8s)** or **PREVIEW HOME COLOR (8s)**. The app saves selected WLED master + segment-0 state locally, applies a *solid* team color at capped brightness 160, and restores that state after 8 seconds. Use **RESTORE PREVIOUS SCENE** to restore immediately. Do not test on critical lighting or automatic safety equipment.
-5. **Optional live goal test:** Select a LIVE NHL matchup, confirm WLED connected, choose AWAY/HOME favorite side and TV delay 0–90s, then press **ARM LIVE GOALS**. The app first loads existing goal IDs from NHL play-by-play and ignores those old goals. While visible it polls for new play events approximately every 25 seconds. A unique new goal by your chosen team triggers a single solid 8-second team-color preview (after configured delay), then restores the old scene. **No arming survives restart/backgrounding**, no strobe, no automatic action until you arm. Multiple unseen goals in one poll are suppressed; if NHL ownership is missing, no trigger.
+1. **WLED LIGHTS** → enter a private LAN WLED IP. The previously used Fireplace IP was `192.168.1.71` (check that it hasn't changed). Select **SAVE IP + CONNECT**. Read WLED state, and test eight-second UTA blue or BOS gold previews. Confirm that your prior scene returns.
+2. **NHL SCORES** → refresh. Select an **actually LIVE** game, which opens **GAME / EVENTS**. Choose the favorite team (home or away) and TV delay (0–90s in 15-second increments). This app uses NHL's public API and may need a live game before you can arm.
+3. Select **ARM IN BACKGROUND**. It starts a foreground service and fetches an initial live-game and play-by-play baseline. Wait until the page says **ARMED**. Old goals are ignored.
+4. Press **HOME** on the Fire TV remote and open your TV streaming app. GlowDeck continues while the foreground service is allowed to run; no picture overlay or audio capture is needed.
+5. When your favorite team scores, a single newly observed NHL goal event (event ID + team owner) schedules a WLED **solid** team-color scene after your chosen TV delay. The original segment-0/master state is journaled to disk and restored after **eight seconds**. No strobes, no TV-video scraping or microphone.
+6. Return to GlowDeck's GAME / EVENTS page and select **STOP BACKGROUND MONITOR**. You can also stop through the ongoing Android notification where Fire OS exposes notifications. Confirm WLED restoration. **No automatic re-arming after a reboot, force stop, or OS process kill.**
 
-## Safety and limitations
+## Functional behavior and limitations
 
-- No physical Fire TV/WLED hardware tests have been run by the assistant. Android compilation and local JVM tests can be verified by the GitHub Actions workflow; hardware/actual network behavior remains to be verified in your LAN.
-- The NHL API (`https://api-web.nhle.com/v1/score/now`, `/v1/gamecenter/{id}/play-by-play`) is a public, best-effort, undocumented service. NHL network availability, payload fields and live event latency can change without notice.
-- WLED communication is **unencrypted local HTTP** (`/json/info`, `/json/state`). The app accepts only private 10.x, 172.16–31.x, 192.168.x IPv4 addresses and never accesses arbitrary hosts, public IPs, or cloud bridges. It needs internet for NHL and LAN access for WLED.
-- The selected WLED is one manually entered device, **segment 0 only**. Master brightness is temporarily affected and restored. State restoration is journaled for recovery after a crash. WLED changed by another controller during the 8-second preview may be overwritten by the restoration; test carefully. If restoration fails, the previous journal is retained; reopen the app and use RESTORE before testing further.
-- A timer or network outage can delay a restoration; avoid using this tool for time-critical/safety-critical lighting. For a completely unresponsive WLED, use its own interface to restore lighting.
-- App fetches today's NHL scoreboard once per minute in foreground; when armed and a live game is selected, selected play-by-play once per ~25 seconds. API freshness will vary; watching a broadcast or streaming provider can have additional delays.
-- Pressing HOME or leaving app disarms monitoring. It is a diagnostic lab, not a guaranteed unattended live scoring automation.
-- Downloaded APK is a **debug-signed test build**. Do not rely on this signing key for future production installation or auto-updates.
+- Foreground service (Android `dataSync`) starts only from your explicit button press. It calls `startForeground()` immediately, displays an ongoing notification with a STOP action, and returns `START_NOT_STICKY`.
+- PBP polling every ~25 seconds; NHL scoreboard check ~55 seconds. Stream delay is separate from NHL data and polling latency. A unique favorite-team goal starts one scene; older events, multi-goal batches, unknown owners, busy effects, cooldown events and corrections do not cause extra scenes.
+- After network/API failure, status becomes **PAUSED**; scheduled pending goals are canceled and the resumed event batch becomes a fresh baseline. There is no replay of goals missed while offline. Monitoring stops when the selected game ceases to be live.
+- Manual lighting commands, game selection, WLED IP changes and delay changes are blocked while the service is active. **Stop the monitor first.** Read-only NHL and WLED status remain available.
+- WLED JSON is **private-LAN HTTP**, limited to manually entered RFC1918 IPv4 addresses. It saves master state plus segment 0 to a local recovery journal before each automatic scene. If restoration fails, no subsequent scene can fire while the journal is outstanding. The previous state may require you to reopen GlowDeck and manually restore.
+- Android/Fire OS may kill a foreground service for memory pressure, battery policies, network changes, force-stop or sleep. **This cannot promise 100% continuous monitoring.** It is not a replacement for a continuously powered ESP32. Android 15+ `dataSync` restrictions can also affect future target-SDK upgrades; this test APK targets API 28 for Fire TV compatibility.
+- Allow notifications if prompted. Some Fire TV variants do not visibly present ongoing notifications; the on-screen STOP control still works.
+- On-demand WLED preview and NHL API tests are available even when no game is live, but live-goal monitoring requires a live matchup.
+- **Hardware acceptance pending:** Build success is not proof it works on your Fire TV or WLED. Test device model/Fire OS, HOME switch, one full game, service/notification persistence, and restart/recovery. Avoid time-critical/safety-critical lighting. Disconnect power to WLED or use WLED's own web UI if recovery fails.
 
-## Source and project tracking
+## Diagnostics
 
-Source: `app/src/main/java/com/gkowdeck/gameday/firetv/` and corresponding tests. Firmware ESP32 project stays at repository root and can evolve independently. Add hardware acceptance outcomes to `docs/VALIDATION.md` and status to `PROJECT_PLAN.md`.
+```powershell
+adb shell dumpsys activity services com.gkowdeck.gameday.firetv
+adb logcat -s GlowDeckMonitor GlowDeckGameDay
+adb shell am force-stop com.gkowdeck.gameday.firetv
+```
+
+The final command **force-stops** the app and service and should be used only for intentionally testing interruption/recovery. Reopen GlowDeck after force-stop to retry a saved WLED restoration. On some devices, you can inspect service notification status in Fire TV's notification interface.
+
+Source: `firetv/app/src/main/java/com/gkowdeck/gameday/firetv/GameDayService.java` and `MonitorRules.java`; the Activity is a UI controller, not the background network worker. Run `gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug` in `firetv/`. Source remains under your `ggrant111/glowdeck-sports` repository.
