@@ -10,7 +10,8 @@ void Ui::begin() {
     pinMode(21, OUTPUT);
     digitalWrite(21, HIGH);
     tft_.init();
-    tft_.setRotation(1);
+    tft_.setRotation(GD_DISPLAY_ROTATION);
+    Serial.printf("Display rotation=%d size=%dx%d\n", GD_DISPLAY_ROTATION, tft_.width(), tft_.height());
     tft_.fillScreen(BG);
     tft_.setTextWrap(false);
 }
@@ -98,7 +99,7 @@ void Ui::gameday(const UiState &state) {
     tft_.drawCentreString(String(state.goalDelay) + "s", 181, 143, 2);
     button(238, 138, 39, 27, "+", CARD);
     button(12, 166, 296, 33, state.restorePending ? "RESTORING LIGHTS" :
-        (state.goalActive ? "GOAL LIGHTS ACTIVE" : (state.goalArmed ? "DISARM GOALS" : "ARM GOAL LIGHTS")),
+        (state.goalActive ? "EVENT LIGHTS ACTIVE" : (state.goalArmed ? "DISARM GAMEDAY" : "ARM GAMEDAY")),
         state.goalArmed ? TEAL : CARD);
     if (state.goalQueued || (state.goalArmed && state.goalPaused)) {
         tft_.setTextColor(GOLD, BG);
@@ -140,7 +141,8 @@ void Ui::setup(const UiState &state) {
     if (!state.nhlError.isEmpty()) tft_.drawString(state.nhlError.substring(0,36), 8, 98, 1);
     tft_.drawString("Configure WLED devices:", 9, 123, 2);
     tft_.drawString(state.wifiConnected ? "http://" + state.ip : "Connect to Wi-Fi first", 9, 143, 2);
-    button(13, 169, 294, 29, "REFRESH SCORES", TEAL);
+    button(8, 169, 147, 29, "REFRESH", TEAL);
+    button(163,169,149,29,"EFFECTS",TEAL);
 }
 namespace {
 String soundName(gd::SoundKind kind) {
@@ -173,6 +175,13 @@ void Ui::audio(const UiState &state) {
         tft_.drawRightString("PLAYING",305,35,1);
     }
 }
+void Ui::effects(const UiState &s){
+    button(8,38,304,28,s.ddp?"DDP ON - WHOLE STRIP":"DDP OFF - SOLID MODE",s.ddp?TEAL:CARD);
+    button(8,73,304,28,String(gd::eventName(gd::SportEvent(s.effectSelection)))+" >",CARD);
+    button(8,108,304,28,(s.effectMask&(1U<<s.effectSelection))?"EVENT ENABLED":"EVENT DISABLED",TEAL);
+    tft_.setTextColor(MUTED,BG);tft_.drawCentreString("1-600 LEDs / 20fps / 8 seconds",160,145,2);
+    button(8,169,147,28,"TRY AWAY",TEAL);button(163,169,149,28,"TRY HOME",TEAL);
+}
 void Ui::draw(const UiState &state) {
     tft_.fillScreen(BG);
     header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : (page_ == Page::Audio ? "AUDIO" : "STATUS"))));
@@ -182,6 +191,7 @@ void Ui::draw(const UiState &state) {
         case Page::Lights: lights(state); break;
         case Page::Setup: setup(state); break;
         case Page::Audio: audio(state); break;
+        case Page::Effects: effects(state);break;
     }
     footer();
     // Serial logs provide full error messages; short banner here for feedback.
@@ -233,7 +243,13 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             return {ActionType::ScanLeds, -1};
         }
     } else if (page_ == Page::Setup && y >= 169 && y < 200) {
+        if(x>=160){page_=Page::Effects;return {};}
         return {ActionType::RefreshNhl, -1};
+    } else if(page_==Page::Effects){
+        if(y>=38&&y<67)return {ActionType::EffectsToggle};
+        if(y>=73&&y<102)return {ActionType::EffectsNext};
+        if(y>=108&&y<137)return {ActionType::EffectsEnable};
+        if(y>=169&&y<198)return {x<160?ActionType::EffectsAway:ActionType::EffectsHome};
     } else if (page_ == Page::Audio) {
         if(y>=38&&y<67&&x>=180)return {ActionType::AudioToggle};
         if(y>=70&&y<101) {
@@ -245,4 +261,14 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         if(y>=175&&y<204)return {x<160?ActionType::AudioPreviewAway:ActionType::AudioPreviewHome};
     }
     return {};
+}
+
+void Ui::calibrationTarget(int index) {
+    static const int x[] = {20, 300, 20}, y[] = {20, 20, 220};
+    tft_.fillScreen(BG);
+    tft_.setTextColor(FG, BG);
+    tft_.drawCentreString("Tap and release each cross", 160, 90, 2);
+    tft_.drawCentreString(String(index + 1) + " / 3", 160, 115, 2);
+    tft_.drawLine(x[index]-10,y[index],x[index]+10,y[index],TFT_WHITE);
+    tft_.drawLine(x[index],y[index]-10,x[index],y[index]+10,TFT_WHITE);
 }

@@ -54,6 +54,7 @@ public final class MainActivity extends Activity {
     private String wledIp="192.168.1.71",wledName="Not connected",fetchStatus="Not checked",lastScoreAt="Never";
     private long lastScoresMs=0,lastPbpMs=0;
     private Runnable scheduledRestore;
+    private final DdpStream previewStream=new DdpStream();
     private final Runnable tick=new Runnable(){public void run(){
         if(!resumed)return;
         long now=System.currentTimeMillis();
@@ -92,10 +93,13 @@ public final class MainActivity extends Activity {
         resumed=false;
         ui.removeCallbacks(tick);
         if(lanSounds!=null)lanSounds.stop(); // Never expose uploads while TV UI is hidden
+        stopPreviewOnExit();
         /* Foreground NHL/WLED service keeps monitoring. */
         super.onStop();
     }
     @Override protected void onDestroy(){
+        stopPreviewOnExit();
+        previewStream.close();
         ui.removeCallbacks(tick);
         if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);
         if(lanSounds!=null)lanSounds.stop();
@@ -103,6 +107,19 @@ public final class MainActivity extends Activity {
         io.shutdown();super.onDestroy();
     }
 
+    private void stopPreviewOnExit(){
+        if(!previewActive || GameDayService.isRunning() || io.isShutdown())return;
+        if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);
+        io.execute(()->{
+            previewStream.close();
+            if(!prefs.contains("restoreJson"))return;
+            try{
+                WledApi.send(prefs.getString("restoreIp",""),new JSONObject(prefs.getString("restoreJson","")).put("live",false));
+                prefs.edit().remove("restoreJson").remove("restoreIp").commit();
+            }catch(Exception ex){android.util.Log.w("GameDay","Preview exit restore pending",ex);}
+            ui.post(()->{previewActive=false;});
+        });
+    }
     private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private GradientDrawable shape(int fill,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(12));if(stroke!=0)d.setStroke(dp(2),stroke);return d;}
     private LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
@@ -204,6 +221,23 @@ public final class MainActivity extends Activity {
         body.addView(txt("Device: "+wledName+"  •  "+(wledConnected?"Connected":"Disconnected"),17,wledConnected?BLUE:MUTED,true));
         if(hasJournal() && !GameDayService.isRunning()){card("RECOVERY REQUIRED","A previous preview hasn't been restored. New previews are blocked until restoration succeeds.");}
         LinearLayout opts=row();
+        boolean ddp=prefs.getBoolean("ddp",false);
+        subtitle("DDP realtime: "+(ddp?"ON":"OFF")+" • whole device • 20fps • 1–600 LEDs • eight-second effects");
+        LinearLayout streaming=row();buttons(streaming,action(ddp?"USE SOLID COLORS":"ENABLE DDP WHOLE STRIP",ddp,()->{
+            if(denyChangeWhileMonitoring()||hasJournal()||previewActive)return;
+            prefs.edit().putBoolean("ddp",!ddp).apply();render();}));body.addView(streaming);
+        if(ddp){
+            subtitle("Enable WLED realtime receive; disable Main segment only. Do not run another sender on this strip.");
+            for(int index=0;index<EventEffects.NAMES.length;index++){
+                final int kind=index;boolean enabled=(prefs.getInt("eventMask",127)&(1<<kind))!=0;
+                LinearLayout effect=row();buttons(effect,
+                    action(EventEffects.NAMES[kind]+(enabled?" ON":" OFF"),enabled,()->{
+                        if(denyChangeWhileMonitoring()||hasJournal())return;
+                        prefs.edit().putInt("eventMask",prefs.getInt("eventMask",127)^(1<<kind)).apply();render();}),
+                    action("PREVIEW AWAY",false,()->previewEffect(kind,false)),
+                    action("PREVIEW HOME",false,()->previewEffect(kind,true)));body.addView(effect);
+            }
+        }
         Button btnAway=action(selected==null?"TEST UTA BLUE  (8s)":"PREVIEW AWAY COLOR  (8s)",false,()->preview(false));
         Button btnHome=action(selected==null?"TEST BOS GOLD  (8s)":"PREVIEW HOME COLOR  (8s)",false,()->preview(true));
         buttons(opts,btnAway,btnHome);body.addView(opts);
@@ -365,16 +399,24 @@ public final class MainActivity extends Activity {
         String team=selected==null?(home?"BOS":"UTA"):(home?selected.home:selected.away);
         startPreview(team,NhlApi.teamColor(team));
     }
-    private void startPreview(String team,int rgb){
+    private void previewEffect(int kind,boolean home){
+        String team=selected==null?(home?"BOS":"UTA"):(home?selected.home:selected.away);
+        startPreview(team,NhlApi.teamColor(team),kind);
+    }
+    private void startPreview(String team,int rgb){startPreview(team,rgb,EventEffects.GOAL);}
+    private void startPreview(String team,int rgb,int kind){
         if(denyChangeWhileMonitoring())return;
         if(hasJournal()||previewActive||restoreBusy){log("Preview blocked until prior state restored");render();return;}
         if(!wledConnected){log("Connect to WLED in LIGHTS first");render();return;}
+        final boolean ddp=prefs.getBoolean("ddp",false);
         String ip=wledIp;previewActive=true;log("Preparing "+team+" preview; capturing WLED state first");render();
         io.execute(()->{
             try {
+                int pixels=ddp?DdpScene.count(ip):0;
                 JSONObject state=WledApi.state(ip);JSONObject saved=WledApi.snapshotRestore(state);
                 if(!prefs.edit().putString("restoreJson",saved.toString()).putString("restoreIp",ip).commit())throw new Exception("Cannot save recovery journal");
-                WledApi.send(ip,WledApi.previewColor(rgb,160));
+                if(ddp)DdpScene.start(previewStream,ip,pixels,kind,rgb);
+                else WledApi.send(ip,WledApi.previewColor(rgb,160));
                 ui.post(()->{
                     log("WLED "+team+" color active for 8 seconds; prior state captured");
                     if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);
@@ -388,10 +430,12 @@ public final class MainActivity extends Activity {
         if(!hasJournal()){previewActive=false;log("No outstanding restore journal");render();return;}
         if(restoreBusy)return;
         restoreBusy=true;
+        previewStream.close();
         if(scheduledRestore!=null){ui.removeCallbacks(scheduledRestore);scheduledRestore=null;}
         final String json=prefs.getString("restoreJson",""); final String ip=prefs.getString("restoreIp","");
         io.execute(()->{try{
-            WledApi.send(ip,new JSONObject(json));
+            previewStream.close();
+            WledApi.send(ip,new JSONObject(json).put("live",false));
             boolean removed=prefs.edit().remove("restoreJson").remove("restoreIp").commit();
             ui.post(()->{restoreBusy=false;previewActive=false;
                 log(removed?"WLED prior scene RESTORED":"WLED restored; journal clear failed, retry next launch");render();});

@@ -160,11 +160,20 @@ bool WledClient::beginAutoColor(size_t index, uint32_t rgb, String &error) {
     if (autoRestorePending()) { error = "Restore previous scene first"; return false; }
     String raw;
     const String ip = devices_[index].ip;
+    int count=0;
+    if(ddpEnabled){
+        if(!request(ip,"/json/info",nullptr,raw)){error="WLED info failed";return false;}
+        DynamicJsonDocument info(4096);
+        if(deserializeJson(info,raw)||!info["leds"]["count"].is<int>()){error="Missing LED count";return false;}
+        count=info["leds"]["count"].as<int>();
+        if(count<1||count>gd::DDP_MAX_PIXELS||bool(info["live"]|false)){error="DDP requires idle WLED, 1-600 LEDs";return false;}
+    }
     if (!request(ip, "/json/state", nullptr, raw)) { error = "WLED snapshot failed"; return false; }
     DynamicJsonDocument state(4096);
     if (deserializeJson(state, raw) || !state["on"].is<bool>() || !state["bri"].is<int>() || !state["seg"].is<JsonArray>()) {
         error = "WLED state invalid"; return false;
     }
+    if(ddpEnabled && int(state["lor"]|0)!=0){error="Disable realtime override first";return false;}
     JsonObjectConst original;
     for (JsonObjectConst s : state["seg"].as<JsonArrayConst>()) {
         if ((s["id"] | -1) == 0) { original = s; break; }
@@ -176,6 +185,7 @@ bool WledClient::beginAutoColor(size_t index, uint32_t rgb, String &error) {
     DynamicJsonDocument backup(2048);
     backup["ip"] = ip;
     JsonObject b = backup.createNestedObject("state");
+    b["live"] = false;
     b["on"] = state["on"];
     b["bri"] = state["bri"];
     b["udpn"]["nn"] = true;
@@ -190,6 +200,13 @@ bool WledClient::beginAutoColor(size_t index, uint32_t rgb, String &error) {
         error = "Could not save WLED backup";
         return false;
     }
+    if(ddpEnabled){
+        String setup="{\"on\":true,\"bri\":160,\"tt\":0,\"udpn\":{\"nn\":true}}",reply;
+        if(!request(ip,"/json/state",&setup,reply)||!stream_.start(ip,count,effect_,rgb)){
+            error="DDP start failed; restore pending";return false;
+        }
+        return true;
+    }
     if (!applyColor(index, rgb, error)) {
         error = "Scene failed; restore pending";
         return false;
@@ -197,7 +214,12 @@ bool WledClient::beginAutoColor(size_t index, uint32_t rgb, String &error) {
     return true;
 }
 
+bool WledClient::beginAutoEvent(size_t index,uint32_t rgb,gd::SportEvent kind,String &error){
+    effect_=kind;return beginAutoColor(index,rgb,error);
+}
+
 bool WledClient::restoreAuto(String &error) {
+    stream_.stop();
     if (autoBackup_.isEmpty()) return true;
     DynamicJsonDocument doc(2304);
     if (deserializeJson(doc, autoBackup_)) {
@@ -210,6 +232,7 @@ bool WledClient::restoreAuto(String &error) {
         error = "Saved backup invalid - manual recovery required";
         return false;
     }
+    doc["state"]["live"]=false;
     String body;
     serializeJson(doc["state"], body);
     String reply;

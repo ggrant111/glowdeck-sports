@@ -37,6 +37,12 @@ public final class GameDayService extends Service {
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final GoalTracker tracker = new GoalTracker();
+    private final SportEventTracker sports = new SportEventTracker();
+    private final DdpStream ddp = new DdpStream();
+    private boolean useDdp;
+    private int eventMask=1;
+    private long finalSeenAt=0;
+    private SportEventTracker.Cue deferredFinal;
     private SharedPreferences monitor, lab;
     private GameAudio sound;
     private long gameId, lastSuccessfulPoll, lastScoreCheck, lastEffectAt;
@@ -55,6 +61,8 @@ public final class GameDayService extends Service {
         monitor = getSharedPreferences("gameday-monitor", MODE_PRIVATE);
         lab = getSharedPreferences("gameday-lab", MODE_PRIVATE);
         sound=new GameAudio(this);
+        useDdp=lab.getBoolean("ddp",false);
+        eventMask=useDdp?lab.getInt("eventMask",127)&127:1;
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "GlowDeck GameDay monitoring", NotificationManager.IMPORTANCE_LOW);
             channel.setDescription("NHL game monitoring and WLED reactions; choose STOP to disarm");
@@ -131,6 +139,7 @@ public final class GameDayService extends Service {
             lastScoreCheck = System.currentTimeMillis();
             NhlApi.Pbp pbp = NhlApi.plays(gameId);
             if (pbp.awayId <= 0 || pbp.homeId <= 0) throw new Exception("NHL team IDs unavailable");
+            sports.update(pbp,eventMask,celebrationMode);
             tracker.update(events(pbp)); // baseline includes all prior goals, no replay
             baselined = true;
             lastSuccessfulPoll = System.currentTimeMillis();
@@ -157,20 +166,27 @@ public final class GameDayService extends Service {
             if (now - lastScoreCheck >= 55_000) {
                 NhlApi.Board scores = NhlApi.scores();
                 lastScoreCheck = System.currentTimeMillis();
-                if (!gameIsLive(scores)) { shutDown("Game is no longer live"); return; }
+                if (!useDdp && !gameIsLive(scores)) { shutDown("Game is no longer live"); return; }
             }
             NhlApi.Pbp pbp = NhlApi.plays(gameId);
             if (pbp.awayId <= 0 || pbp.homeId <= 0) throw new Exception("NHL team IDs unavailable");
             now = System.currentTimeMillis();
+            if(pbp.finished() && finalSeenAt==0)finalSeenAt=now;
+            if(finalSeenAt>0 && now-finalSeenAt>125000 && queuedGoal==null && restoreTask==null && deferredFinal==null){shutDown("Game ended; effects restored");return;}
+            if(!pbp.finished() && !"LIVE".equals(pbp.state) && !"CRIT".equals(pbp.state))throw new Exception("Game feed not live");
             if (lab.contains("restoreJson") && restoreTask == null) {
                 try { restoreSavedState(); }
                 catch (Exception recovery) { publish("RESTORE NEEDED", "WLED restore failed; all new goals blocked: " + message(recovery)); return; }
             }
             if (paused || MonitorRules.needsBaseline(now, lastSuccessfulPoll) || !baselined) {
                 tracker.reset(); tracker.update(events(pbp));
+                sports.reset();sports.update(pbp,eventMask,celebrationMode);deferredFinal=null;
                 publish("ARMED", "Feed resumed; old goals skipped, monitoring new events");
                 paused = false;
             } else {
+                SportEventTracker.Cue cue=sports.update(pbp,eventMask,celebrationMode);
+                if(cue!=null&&cue.kind==EventEffects.GAME_END)deferredFinal=cue;
+                if(deferredFinal!=null)cue=deferredFinal;
                 int goalOwner = tracker.update(events(pbp));
                 int acceptedOwner=CelebrationSelection.acceptedOwner(goalOwner,pbp.awayId,pbp.homeId,celebrationMode);
                 boolean canReact = MonitorRules.shouldCelebrate(running && !stopping, true,
@@ -178,7 +194,13 @@ public final class GameDayService extends Service {
                         goalOwner, acceptedOwner, now, lastEffectAt);
                 if (goalOwner > 0 && !canReact)
                     Log.i("GlowDeckMonitor", "Goal ignored (team not selected/busy/cooldown/recovery)");
-                if (canReact) queueGoal(goalOwner == pbp.homeId ? home : away);
+                if (canReact && (eventMask&1)!=0) queueGoal(goalOwner == pbp.homeId ? home : away,EventEffects.GOAL);
+                else if(cue!=null && queuedGoal==null && restoreTask==null && !lab.contains("restoreJson") &&
+                        (lastEffectAt==0 || now-lastEffectAt>=20_000)) {
+                    String team=cue.owner==pbp.homeId?home:cue.owner==pbp.awayId?away:
+                        celebrationMode==CelebrationSelection.HOME?home:away;
+                    queueGoal(team,cue.kind);if(cue.kind==EventEffects.GAME_END)deferredFinal=null;
+                }
             }
             lastSuccessfulPoll = now;
         } catch (Exception ex) {
@@ -188,17 +210,17 @@ public final class GameDayService extends Service {
             // Keep polling while foreground service remains active. NO old goals on resumption.
         }
     }
-    private void queueGoal(String team) {
+    private void queueGoal(String team,int kind) {
         if (queuedGoal != null || stopping) return;
-        publish("GOAL WAIT", team + " • " + delaySec + "s TV delay");
+        publish(EventEffects.NAMES[kind]+" WAIT", team + " • " + delaySec + "s TV delay");
         queuedGoal = worker.schedule(() -> {
             queuedGoal = null;
             if (stopping || paused || !running || lab.contains("restoreJson")) return;
             try {
                 // Recheck game status immediately before modifying WLED.
-                if (!gameIsLive(NhlApi.scores())) { shutDown("Game finished before goal scene"); return; }
+                if (!useDdp && !gameIsLive(NhlApi.scores())) { shutDown("Game finished before goal scene"); return; }
                 lastEffectAt = System.currentTimeMillis();
-                scene(team);
+                scene(team,kind);
             } catch (Exception ex) {
                 paused = true;
                 publish("PAUSED", "Could not apply goal scene: " + message(ex));
@@ -208,16 +230,18 @@ public final class GameDayService extends Service {
             }
         }, delaySec, TimeUnit.SECONDS);
     }
-    private void scene(String team) throws Exception {
+    private void scene(String team,int kind) throws Exception {
         if (lab.contains("restoreJson")) throw new Exception("Prior scene must be restored first");
+        int pixels=useDdp?DdpScene.count(ip):0;
         JSONObject snapshot = WledApi.snapshotRestore(WledApi.state(ip));
         if (!lab.edit().putString("restoreJson", snapshot.toString()).putString("restoreIp", ip).commit())
             throw new Exception("Cannot journal prior WLED scene");
-        WledApi.send(ip, WledApi.previewColor(NhlApi.teamColor(team),160));
+        if(useDdp)DdpScene.start(ddp,ip,pixels,kind,NhlApi.teamColor(team));
+        else WledApi.send(ip, WledApi.previewColor(NhlApi.teamColor(team),160));
         // Audio is optional and runs on its own thread. Never delay WLED restoration.
-        try { if(sound!=null)sound.play(team,false); }
+        try { if(kind==EventEffects.GOAL&&sound!=null)sound.play(team,false); }
         catch(Exception audioError){Log.w("GlowDeckAudio","Audio could not start",audioError);}
-        publish("GOAL LIGHTS", team + " celebration active; restoring in 8 seconds");
+        publish(EventEffects.NAMES[kind]+" LIGHTS", team + " celebration active; restoring in 8 seconds");
         restoreTask = worker.schedule(() -> {
             restoreTask = null;
             try {
@@ -227,12 +251,13 @@ public final class GameDayService extends Service {
         },8,TimeUnit.SECONDS);
     }
     private void restoreSavedState() throws Exception {
+        ddp.close();
         if(sound!=null)sound.stop();
         if (!lab.contains("restoreJson")) return;
         String recoveryIp = lab.getString("restoreIp", "");
         String json = lab.getString("restoreJson", "");
         if (!AddressValidator.isPrivateLanIpv4(recoveryIp)) throw new Exception("Saved restore IP invalid");
-        WledApi.send(recoveryIp, new JSONObject(json));
+        WledApi.send(recoveryIp, new JSONObject(json).put("live",false));
         if (!lab.edit().remove("restoreJson").remove("restoreIp").commit())
             throw new Exception("Scene restored but journal could not be cleared");
     }
@@ -258,6 +283,7 @@ public final class GameDayService extends Service {
     private void failAndStop(String reason) { shutDown(reason); }
     private static String message(Exception ex) { return ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(); }
     @Override public void onDestroy() {
+        ddp.close();
         if(sound!=null)sound.stop();
         running = false; stopping = false;
         cancelGoal();

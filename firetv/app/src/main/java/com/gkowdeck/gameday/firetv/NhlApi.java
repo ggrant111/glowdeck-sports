@@ -39,14 +39,14 @@ final class NhlApi {
         return board;
     }
     static class Play {
-        int eventId,ownerId,period;String type,time,description;
-        boolean goal(){return "goal".equalsIgnoreCase(type);}
+        int eventId,ownerId,period;String type,time,description,periodType,situation;
+        boolean goal(){return "goal".equalsIgnoreCase(type)&&!"SO".equals(periodType);}
     }
-    static class Pbp {long gameId;int homeId,awayId; List<Play> plays=new ArrayList<>();}
+    static class Pbp {String state; boolean finished(){return "OFF".equals(state)||"FINAL".equals(state);} long gameId;int homeId,awayId; List<Play> plays=new ArrayList<>();}
     static Pbp plays(long id)throws Exception {
         if(id<2000000000L || id>2999999999L)throw new Exception("Select a valid NHL game first");
         JSONObject o=Net.get(ROOT+"/gamecenter/"+id+"/play-by-play");
-        Pbp pbp=new Pbp();pbp.gameId=id;
+        Pbp pbp=new Pbp();pbp.gameId=id;pbp.state=o.optString("gameState","");
         JSONObject h=o.optJSONObject("homeTeam"),a=o.optJSONObject("awayTeam");
         pbp.homeId=h==null?0:h.optInt("id",0);pbp.awayId=a==null?0:a.optInt("id",0);
         JSONArray list=o.optJSONArray("plays"); if(list==null)throw new Exception("No NHL play-by-play array in response");
@@ -55,6 +55,8 @@ final class NhlApi {
             Play x=new Play(); x.eventId=p.optInt("eventId",0);
             x.type=p.optString("typeDescKey","");
             x.period=p.optJSONObject("periodDescriptor")==null?0:p.optJSONObject("periodDescriptor").optInt("number",0);
+            x.periodType=p.optJSONObject("periodDescriptor")==null?"":p.optJSONObject("periodDescriptor").optString("periodType","");
+            x.situation=p.optString("situationCode","");
             x.time=p.optString("timeInPeriod","");
             JSONObject d=p.optJSONObject("details");x.ownerId=d==null?0:d.optInt("eventOwnerTeamId",0);
             x.description=x.type.toUpperCase()+" P"+x.period+" "+x.time;

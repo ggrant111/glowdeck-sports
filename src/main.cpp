@@ -12,6 +12,7 @@
 #include "NhlClient.h"
 #include "WledClient.h"
 #include "Ui.h"
+#include "TouchTransform.h"
 
 namespace {
 constexpr uint32_t NHL_INTERVAL_MS = 60000;
@@ -20,8 +21,7 @@ constexpr uint32_t UI_INTERVAL_MS = 3000;
 constexpr int TOUCH_CS = 33, TOUCH_IRQ = 36;
 constexpr int TOUCH_CLK = 25, TOUCH_MISO = 39, TOUCH_MOSI = 32;
 // Calibrate these constants if touch is mirrored/offset on your particular CYD board.
-constexpr int RAW_X_MIN = 200, RAW_X_MAX = 3800;
-constexpr int RAW_Y_MIN = 200, RAW_Y_MAX = 3800;
+gd::TouchTransform touchMap;
 SPIClass touchSpi(VSPI);
 XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 Ui ui;
@@ -29,6 +29,9 @@ UiState uiState;
 NhlClient nhl;
 WledClient wled;
 gd::GoalEngine goals;
+uint8_t effectMask=127,effectSelection=0;
+bool effectPreview=false;
+uint32_t effectPreviewEnds=0;
 // No external computer: WLED on LAN implements journaled LightPort.
 class WledLightPort : public gd::LightPort {
 public:
@@ -38,6 +41,11 @@ public:
         bool ok = wled.beginAutoColor((size_t)uiState.selectedLed, color, err);
         if (!ok) Serial.println("Auto scene start: " + err);
         return ok;
+    }
+    bool startEvent(uint32_t color,gd::SportEvent kind) override {
+        if(uiState.selectedLed<0)return false;
+        String error;bool ok=wled.beginAutoEvent(uiState.selectedLed,color,kind,error);
+        if(!ok)Serial.println(error);return ok;
     }
     bool restore() override {
         String err;
@@ -91,6 +99,7 @@ void banner(const String &s) {
     Serial.println(String("GameDay: ") + s);
 }
 void redraw() {
+    uiState.ddp=wled.ddpEnabled;uiState.effectSelection=effectSelection;uiState.effectMask=effectMask;
     uiState.wifiConnected = WiFi.status() == WL_CONNECTED;
     uiState.ip = WiFi.localIP().toString();
     uiState.goalArmed = goals.armed();
@@ -120,6 +129,8 @@ void saveGameSettings() {
 void loadGameSettings() {
     Preferences p;
     p.begin("gd-game", true);
+    wled.ddpEnabled=p.getBool("ddp",false);effectMask=p.getUChar("events",127)&127;
+    goals.setEventMask(wled.ddpEnabled?effectMask:1,wled.ddpEnabled);
     goals.setDelay(p.getUChar("delay", 0));
     goals.setMode(gd::CelebrationMode::Away);
     p.end();
@@ -133,7 +144,7 @@ void loadGameSettings() {
 // Manual actions restore the automatic scene FIRST, rather than silently
 // destroying the saved original state. No manual mutation if restore fails.
 bool clearAutoBeforeManual() {
-    goals.disarm();
+    goals.disarm();effectPreview=false;
     if (!wled.autoRestorePending()) return true;
     String err;
     if (wled.restoreAuto(err)) return true;
@@ -219,6 +230,7 @@ void setGoalDelay(int delta) {
     banner(String("TV delay ") + goals.delay() + " seconds");
 }
 void toggleArm() {
+    if(effectPreview){banner("Finish effect preview first");return;}
     if (goals.armed()) {
         goals.disarm();
         audio.stop();
@@ -241,6 +253,23 @@ void toggleArm() {
     banner("Goal monitor: fetching play baseline");
 }
 
+void effectAction(int action,bool home=false){
+    if(goals.armed()||effectPreview||wled.autoRestorePending()){banner("Stop / restore before changing effects");return;}
+    if(action==0)wled.ddpEnabled=!wled.ddpEnabled;
+    else if(action==1)effectSelection=(effectSelection+1)%7;
+    else if(action==2)effectMask^=(1U<<effectSelection);
+    else if(action==3){
+        if(!wled.ddpEnabled||uiState.selectedLed<0){banner("Enable DDP and select WLED first");return;}
+        const gd::Game *g=selectedGame();uint32_t color=gd::teamColor(g?(home?g->home:g->away):(home?"BOS":"UTA"));
+        String error;
+        if(wled.beginAutoEvent(uiState.selectedLed,color,gd::SportEvent(effectSelection),error)){
+            effectPreview=true;effectPreviewEnds=millis()+8000;banner("DDP preview: "+String(gd::eventName(gd::SportEvent(effectSelection))));
+        }else banner(error);
+        return;
+    }
+    goals.setEventMask(wled.ddpEnabled?effectMask:1,wled.ddpEnabled);
+    Preferences p;p.begin("gd-game",false);p.putBool("ddp",wled.ddpEnabled);p.putUChar("events",effectMask);p.end();
+}
 String htmlEscape(const String &s) {
     String out;
     for (size_t i=0; i<s.length(); ++i) {
@@ -314,7 +343,11 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
     page += "<form method='post' action='/sound'><button name='action' value='previewHome'>Preview home</button></form>";
     page += "<p>Custom file name: /audio/NAME.wav (mono PCM 16 kHz, 16 bit, up to 10 seconds)</p>";
     page += "<form method='post' action='/sound'><input name='clip' placeholder='GOAL' maxlength='24' required pattern='[A-Z0-9_-]+'><button name='action' value='fileAway'>Set away WAV</button><button name='action' value='fileHome'>Set home WAV</button></form>";
-    page += "</section><small>Prototype: local HTTP without login, trusted LAN only. Do not port forward. Solid colors only; WLED segment 0 auto-snapshot/restore.</small></body></html>";
+    page += "</section><section><h2>DDP realtime event effects</h2><p>Whole device, 1–600 LEDs, 20fps, 8 seconds. Enable WLED realtime receive; Main segment only must be OFF.</p>";
+    page += "<form method='post' action='/effects'><button name='action' value='0'>DDP "+String(wled.ddpEnabled?"ON":"OFF")+" — toggle</button></form>";
+    page += "<p>Selected: "+String(gd::eventName(gd::SportEvent(effectSelection)))+String(effectMask&(1<<effectSelection)?" ON":" OFF")+"</p>";
+    page += "<form method='post' action='/effects'><button name='action' value='1'>Next event</button><button name='action' value='2'>Toggle event</button><button name='action' value='3'>Preview away</button><button name='action' value='4'>Preview home</button></form>";
+    page += "</section><small>Prototype: local HTTP without login, trusted LAN only. Do not port forward. Solid mode: segment 0; DDP: whole strip with automatic restoration.</small></body></html>";
     web.send(200, "text/html; charset=utf-8", page);
 }
 void refreshNhl() {
@@ -410,6 +443,11 @@ void doAction(const UiAction &a) {
       case ActionType::AudioVolumeUp: adjustVolume(10); break;
       case ActionType::AudioAwayNext: cycleSound(false); break;
       case ActionType::AudioHomeNext: cycleSound(true); break;
+      case ActionType::EffectsToggle: effectAction(0);break;
+      case ActionType::EffectsNext: effectAction(1);break;
+      case ActionType::EffectsEnable: effectAction(2);break;
+      case ActionType::EffectsAway: effectAction(3);break;
+      case ActionType::EffectsHome: effectAction(3,true);break;
       case ActionType::AudioPreviewAway: previewSound(false); break;
       case ActionType::AudioPreviewHome: previewSound(true); break;
       default: break;
@@ -419,6 +457,12 @@ void doAction(const UiAction &a) {
 void setupWeb() {
     if (servicesStarted) return;
     web.on("/", HTTP_GET, webHome);
+    web.on("/effects",HTTP_POST,[]{
+        String a=web.arg("action");
+        if(a=="0"||a=="1"||a=="2"||a=="3")effectAction(a.toInt());
+        else if(a=="4")effectAction(3,true);
+        redirectHome();
+    });
     web.on("/add", HTTP_POST, [] {
         String err;
         if (wled.add(web.arg("ip"), err)) {
@@ -498,13 +542,45 @@ void initWiFi() {
         banner("Wi-Fi connected");
     } else banner("Wi-Fi setup timed out. Reboot to retry.");
 }
+// Serial C at boot forces recalibration even if the existing map cannot hit UI controls.
+void calibrateTouch(bool force=false) {
+    Preferences prefs;
+    if (!prefs.begin("touchmap",false)) return;
+    const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+    if (!force && prefs.getBytesLength(key)==sizeof(touchMap)) {
+        prefs.getBytes(key,&touchMap,sizeof(touchMap)); prefs.end(); return;
+    }
+    int x[3],y[3]; bool ok=true;
+    for (int i=0;i<3 && ok;++i) {
+        ui.calibrationTarget(i);
+        uint32_t start=millis();
+        while(touch.touched() && millis()-start<20000) delay(10);
+        delay(150);
+        while(!touch.touched() && millis()-start<20000) delay(10);
+        if(millis()-start>=20000) { ok=false; break; }
+        long sx=0,sy=0; int n=0;
+        for(int j=0;j<8;++j) {
+            if(touch.touched()) { TS_Point p=touch.getPoint();sx+=p.x;sy+=p.y;++n; }
+            delay(15);
+        }
+        if(n<3) {ok=false;break;}
+        x[i]=sx/n;y[i]=sy/n;
+    }
+    gd::TouchTransform candidate;
+    if(ok && candidate.fit(x,y)) {
+        touchMap=candidate;prefs.putBytes(key,&touchMap,sizeof(touchMap));
+        Serial.println("Touch calibration saved");
+    } else Serial.println("Touch calibration cancelled; retaining previous mapping");
+    prefs.end();
+    lastTap=millis();
+}
 void pollTouch() {
     if (touchSuspendedForSd) return;
     if (!touch.touched() || millis() - lastTap < 230) return;
     TS_Point p = touch.getPoint();
     // XPT2046 setRotation(1) reports a rotated raw space for landscape.
-    int x = constrain(map(p.x, RAW_X_MIN, RAW_X_MAX, 0, 320), 0, 319);
-    int y = constrain(map(p.y, RAW_Y_MIN, RAW_Y_MAX, 0, 240), 0, 239);
+    int x = touchMap.screenX(p.x,p.y);
+    int y = touchMap.screenY(p.x,p.y);
     Serial.printf("Touch raw(%d,%d) screen(%d,%d)\n", p.x, p.y, x, y);
     lastTap = millis();
     doAction(ui.touch(x, y, uiState));
@@ -520,6 +596,19 @@ void setup() {
     touchSpi.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
     touch.begin(touchSpi);
     touch.setRotation(1);
+    Serial.println("Send C within 2 seconds to calibrate touch");
+    delay(2000);
+    bool force=false;
+    while(Serial.available()) { int c=Serial.read();if(c=='c'||c=='C')force=true; }
+    if(force) calibrateTouch(true);
+    else {
+        Preferences prefs;
+        if(prefs.begin("touchmap",false)) {
+            const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+            if(prefs.getBytesLength(key)==sizeof(touchMap)) prefs.getBytes(key,&touchMap,sizeof(touchMap));
+            prefs.end();
+        }
+    }
     wled.begin();
     if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
     loadGameSettings();
@@ -544,12 +633,15 @@ void loop() {
     pollTouch();
     const bool online = WiFi.status() == WL_CONNECTED;
     const uint32_t started = reactions.startedCount(), restored = reactions.restoreCount();
-    reactions.service(millis(), online);
+    if(effectPreview && (!online || (int32_t)(millis()-effectPreviewEnds)>=0)){
+        effectPreview=false;String error;if(!wled.restoreAuto(error))banner(error);
+    }
+    if(!effectPreview)reactions.service(millis(), online);
     // Recovery must also work if NHL is unavailable or no WLED is selected.
     // See implementation: the driver should only depend on Wi-Fi for restore.
     if (reactions.startedCount() != started) {
-        banner("GOAL! Team color active");
-        if(soundEnabled)trySound(reactions.lastGoalHome()?homeSound:awaySound);
+        banner(String(gd::eventName(reactions.lastEventKind()))+" effect active");
+        if(soundEnabled && reactions.lastEventKind()==gd::SportEvent::Goal)trySound(reactions.lastGoalHome()?homeSound:awaySound);
     }
     if(reactions.restoreCount()!=restored)audio.stop();
     if (reactions.restoreCount() != restored) banner("Original lights restored");

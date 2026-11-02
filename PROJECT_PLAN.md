@@ -387,3 +387,26 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 **Security:** HTTP-only over trusted LAN; no public internet, no port-forwarding. Fresh PIN and private IPv4 restrictions reduce unauthorized LAN access, but do not provide encrypted transport.
 
 **v0.4.1 field status (2026-11-01):** Code and APK release complete. Actual Safari-to-Fire TV pairing/upload, imported sound persistence and real TV-speaker preview are pending user hardware acceptance. No unsupported claim of ESP32 LAN upload parity.
+
+
+## v0.5.0 DDP event effects — 2026-11-02
+
+DDP has been moved ahead of the v1.0 NHL release gate. See [DDP_V05.md](docs/DDP_V05.md) for the exact behavior and acceptance checklist. Fire TV, ESP32 and local browser source implement seven event patterns, opt-in whole-device streaming, event toggles and previews. Real hardware and hosted Lovable parity remain unverified. Existing Fire TV LAN audio upload and ESP32 microSD behavior are preserved.
+
+Local cross-platform static checks, 175 C++/browser pixel vectors, native simulator and nine bridge regression tests passed. Full firmware/JVM/APK CI results will be recorded on the feature PR; source checks alone are not a build or physical validation claim.
+
+
+## v0.5.0 published build verification — 2026-11-02
+
+Source commit: `e54e752f62823847776f43a7b2bf34df00f67bc3`, branch `feature/ddp-event-effects`, draft PR https://github.com/ggrant111/glowdeck-sports/pull/1 .
+
+- Fire TV Gradle JVM tests, debug APK assembly and checksum verification: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616401
+- ESP32 portable tests **34/34 PASS** and CYD firmware compilation: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616371
+- Cross-platform parity: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616151
+- APK SHA-256: `79c79984a265a1bf97406b3fbbcfd10993b481c1b1272871afbc4e1d981e1ec9`.
+- APK artifact: https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616401/artifacts/13160245573
+- ESP32 firmware artifact: https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616371/artifacts/13159927195
+
+The ESP32 now also keeps the final-goal window when only goal effects are enabled, matching Fire TV. Native regression coverage includes this configuration. All seven effect patterns, team filters, toggles, previews, delay and journaled restoration are implemented on both physical platforms. Browser preview remains a mock and the separate hosted deployment is unchanged.
+
+These are successful software builds, not hardware acceptance. Verify WLED mapping/restoration, CYD speaker/touch/heap behavior and Fire TV playback performance before considering the feature production-ready. The branch has not been merged into main.

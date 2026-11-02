@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
+#include "EventEffects.h"
 
 namespace gd {
 constexpr size_t MAX_GAMES = 16;
@@ -16,10 +17,14 @@ inline const char* celebrationName(CelebrationMode mode) {
 // Compact NHL /play-by-play sample: latest event ID includes NON-goals, so
 // the goal engine can deduplicate without retaining the complete PBP log.
 struct GoalPlay { uint32_t id = 0, ownerId = 0; };
+struct ExtraPlay { uint32_t id=0, ownerId=0; SportEvent kind=SportEvent::PeriodStart; };
 struct GoalFeed {
     uint32_t gameId = 0, homeId = 0, awayId = 0, latestEventId = 0;
     GoalPlay goals[MAX_GOALS_PER_GAME];
     uint8_t count = 0;
+    ExtraPlay extra[64];
+    uint8_t extraCount=0;
+    bool final=false;
     bool valid = false;
 };
 

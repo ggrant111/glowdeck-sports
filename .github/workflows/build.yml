@@ -7,6 +7,9 @@ on:
 jobs:
   platformio:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board: [cyd, cyd_ili9342, cyd_st7789]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,17 +19,12 @@ jobs:
         run: pip install platformio
       - name: Run portable tests
         run: pio test -e native
+      - name: Check touch coordinate transforms
+        run: c++ -std=c++17 -Iinclude scripts/check-touch.cpp -o /tmp/check-touch && /tmp/check-touch
       - name: Compile CYD firmware
-        run: pio run -e cyd
+        run: pio run -e ${{ matrix.board }}
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.4-firmware
-          path: .pio/build/cyd/firmware.bin
-      - name: Compile alternative two-USB ST7789 firmware
-        run: pio run -e cyd_st7789
-      - name: Upload ST7789 landscape image
-        uses: actions/upload-artifact@v4
-        with:
-          name: GlowDeck-GameDay-v0.4-ST7789-landscape-firmware
-          path: .pio/build/cyd_st7789/firmware.bin
+          name: GlowDeck-GameDay-v0.5.0-${{ matrix.board }}-firmware
+          path: .pio/build/${{ matrix.board }}/firmware.bin
