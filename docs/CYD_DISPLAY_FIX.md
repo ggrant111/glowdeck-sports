@@ -7,7 +7,7 @@ the controller. `cyd_ili9342` is a **hardware test profile**, not a confirmed
 identification of this board.
 
 - `cyd`: existing portrait-native ILI9341, rotation 1, logical 320x240.
-- `cyd_ili9342`: landscape-native ILI9342, rotation 0, logical 320x240, RGB order.
+- `cyd_ili9342`: landscape-native ILI9342, rotation 2, logical 320x240, RGB order.
   This changes the controller address mapping by 90 degrees while retaining
   the application's landscape layout. DDP, audio and sports features are identical.
 
@@ -55,3 +55,20 @@ Validation: portable simulations, touch transform checks (swapped/reversed axes,
 center point, degenerate calibration and bounds) and parity checks passed locally.
 CI compiles both display profiles. Real board orientation, touch and NHL response
 validation are still required. The existing Fire TV v0.5.0 APK is unaffected.
+
+## Field correction: upside-down graphics and idle redraw
+
+The user confirmed that the landscape-native profile displays the full UI but
+its graphics are 180 degrees opposite the already-correct touch targets.
+`cyd_ili9342` now uses display rotation 2 instead of 0. The touch controller
+remains at rotation 1; its calibration namespace stays `landscape` for either
+even display rotation, preserving any saved map. Boot should report
+`Display rotation=2 size=320x240`.
+
+The three-second UI poll used to clear and repaint the screen unconditionally.
+Rendering now compares a value snapshot (including page, scores, device names,
+banners and live status) and skips identical frames. Changed data, page switches,
+audio completion and expired banners still update on the existing schedule.
+Calibration invalidates the snapshot so returning to the UI repaints it.
+Actual changes still use the existing full-frame drawing path; this removes
+idle periodic flashes, not every possible flash during a real screen change.

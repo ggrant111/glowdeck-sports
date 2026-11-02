@@ -55,6 +55,9 @@ public:
     void setPage(Page p) { page_ = p; }
 private:
     TFT_eSPI tft_;
+    String lastRenderKey_;
+    bool rendered_ = false;
+    String renderKey(const UiState &state) const;
     Page page_ = Page::Scores;
     void header(const UiState &state, const char *title);
     void footer();

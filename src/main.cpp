@@ -546,7 +546,7 @@ void initWiFi() {
 void calibrateTouch(bool force=false) {
     Preferences prefs;
     if (!prefs.begin("touchmap",false)) return;
-    const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+    const char *key = (GD_DISPLAY_ROTATION % 2) == 0 ? "landscape" : "portrait";
     if (!force && prefs.getBytesLength(key)==sizeof(touchMap)) {
         prefs.getBytes(key,&touchMap,sizeof(touchMap)); prefs.end(); return;
     }
@@ -604,7 +604,7 @@ void setup() {
     else {
         Preferences prefs;
         if(prefs.begin("touchmap",false)) {
-            const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+            const char *key = (GD_DISPLAY_ROTATION % 2) == 0 ? "landscape" : "portrait";
             if(prefs.getBytesLength(key)==sizeof(touchMap)) prefs.getBytes(key,&touchMap,sizeof(touchMap));
             prefs.end();
         }

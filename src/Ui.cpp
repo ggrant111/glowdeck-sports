@@ -7,6 +7,7 @@ constexpr int FOOTER_Y = 206;
 }
 
 void Ui::begin() {
+    rendered_ = false;
     pinMode(21, OUTPUT);
     digitalWrite(21, HIGH);
     tft_.init();
@@ -182,7 +183,50 @@ void Ui::effects(const UiState &s){
     tft_.setTextColor(MUTED,BG);tft_.drawCentreString("1-600 LEDs / 20fps / 8 seconds",160,145,2);
     button(8,169,147,28,"TRY AWAY",TEAL);button(163,169,149,28,"TRY HOME",TEAL);
 }
+// Compare values, not the addresses of the mutable scoreboard/WLED objects.
+// Length prefixes keep arbitrary device names and messages unambiguous.
+String Ui::renderKey(const UiState &s) const {
+    String key;
+    key.reserve(2048);
+    auto add = [&key](const String &value) {
+        key += String(value.length()); key += ':'; key += value;
+    };
+    add(String(static_cast<int>(page_)));
+    add(String(s.selectedGameId)); add(String(s.selectedLed)); add(String(s.gamePage));
+    add(String(s.wifiConnected)); add(String(s.nhlConnected));
+    add(String(s.goalArmed)); add(String(s.goalActive)); add(String(s.goalQueued));
+    add(String(static_cast<int>(s.celebrationMode)));
+    add(String(s.goalPaused)); add(String(s.goalBaselineReady)); add(String(s.goalDelay));
+    add(String(s.restorePending)); add(String(s.ddp));
+    add(String(s.effectSelection)); add(String(s.effectMask));
+    add(String(s.soundEnabled)); add(String(s.soundBusy)); add(String(s.soundVolume));
+    add(String(static_cast<int>(s.awaySound))); add(String(static_cast<int>(s.homeSound)));
+    add(s.ip); add(s.nhlError); add(s.message);
+    add(String(s.scoreboard != nullptr));
+    if (s.scoreboard) {
+        const auto &scores = *s.scoreboard;
+        add(String(scores.valid)); add(scores.date); add(String(scores.count));
+        for (size_t i=0; i<scores.count && i<gd::MAX_GAMES; ++i) {
+            const auto &g=scores.games[i];
+            add(String(g.id)); add(g.away); add(g.home); add(g.state); add(g.clock);
+            add(String(g.awayScore)); add(String(g.homeScore)); add(String(g.period));
+        }
+    }
+    add(String(s.leds != nullptr));
+    if (s.leds) {
+        add(String(s.leds->size()));
+        for (size_t i=0;i<s.leds->size();++i) {
+            const auto &led=s.leds->at(i);
+            add(led.ip); add(led.name); add(String(led.online));
+        }
+    }
+    return key;
+}
 void Ui::draw(const UiState &state) {
+    const String key = renderKey(state);
+    if (rendered_ && key == lastRenderKey_) return;
+    lastRenderKey_ = key;
+    rendered_ = true;
     tft_.fillScreen(BG);
     header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : (page_ == Page::Audio ? "AUDIO" : "STATUS"))));
     switch (page_) {
@@ -264,6 +308,7 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
 }
 
 void Ui::calibrationTarget(int index) {
+    rendered_ = false;
     static const int x[] = {20, 300, 20}, y[] = {20, 20, 220};
     tft_.fillScreen(BG);
     tft_.setTextColor(FG, BG);
