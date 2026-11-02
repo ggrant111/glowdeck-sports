@@ -21,11 +21,14 @@ pio run -e cyd_ili9342 -t upload --upload-port COM5
 pio device monitor --port COM5 --baud 115200
 ```
 
-On first boot, tap and release the three crosshairs. The mapping handles swapped
-or reversed touch axes and is saved separately for each display profile.
-Each target times out after 20 seconds; timeout retains the previous/default
-mapping. To retry, open the serial monitor, press reset, and send `C` when the
-boot message requests it. No flash erase is needed; Wi-Fi settings are retained.
+The user confirmed that touch already targets the correct landscape positions.
+Both profiles therefore retain the original touch rotation and default mapping;
+there is no automatic calibration. Only the graphics controller mapping changes.
+Optional calibration is available if a different panel needs it: open the serial
+monitor, press reset, and send `C` when the boot message requests it, then tap
+and release the three crosshairs. The mapping handles swapped or reversed axes
+and is saved separately for each display profile. Each target times out after
+20 seconds; timeout retains the previous/default mapping. No flash erase is needed; Wi-Fi settings are retained.
 To return to the old display profile, upload with `-e cyd` instead.
 
 The firmware prints its rotation and logical dimensions at boot. Confirm the

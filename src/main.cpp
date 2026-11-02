@@ -600,18 +600,15 @@ void setup() {
     delay(2000);
     bool force=false;
     while(Serial.available()) { int c=Serial.read();if(c=='c'||c=='C')force=true; }
-#ifdef GD_TOUCH_CALIBRATE
-    calibrateTouch(force);
-#else
     if(force) calibrateTouch(true);
     else {
         Preferences prefs;
         if(prefs.begin("touchmap",false)) {
-            if(prefs.getBytesLength("portrait")==sizeof(touchMap)) prefs.getBytes("portrait",&touchMap,sizeof(touchMap));
+            const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+            if(prefs.getBytesLength(key)==sizeof(touchMap)) prefs.getBytes(key,&touchMap,sizeof(touchMap));
             prefs.end();
         }
     }
-#endif
     wled.begin();
     if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
     loadGameSettings();
