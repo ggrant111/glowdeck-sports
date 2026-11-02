@@ -66,6 +66,11 @@ void test_unknown_goal_owner_never_triggers();
 void test_pause_resumes_by_baseline_without_replay();
 void test_invalid_teams_and_invalid_mode();
 void test_multi_goal_jump_and_duplicate_event_ids();
+void test_audio_kind_and_clip_names();
+void test_audio_wav_header_valid();
+void test_audio_wav_reject_non_pcm_or_stereo();
+void test_audio_wav_truncated_and_oversized();
+void test_audio_volume_limits();
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_goal_increase_live);
@@ -91,5 +96,10 @@ int main(int, char**) {
     RUN_TEST(test_pause_resumes_by_baseline_without_replay);
     RUN_TEST(test_invalid_teams_and_invalid_mode);
     RUN_TEST(test_multi_goal_jump_and_duplicate_event_ids);
+    RUN_TEST(test_audio_kind_and_clip_names);
+    RUN_TEST(test_audio_wav_header_valid);
+    RUN_TEST(test_audio_wav_reject_non_pcm_or_stereo);
+    RUN_TEST(test_audio_wav_truncated_and_oversized);
+    RUN_TEST(test_audio_volume_limits);
     return UNITY_END();
 }
