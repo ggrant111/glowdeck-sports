@@ -43,6 +43,7 @@ public final class MainActivity extends Activity {
     private LinearLayout root,nav,body; private TextView status,notice;private EditText ipEntry;
     private SharedPreferences prefs, audioPrefs;
     private GameAudio gameAudio;
+    private LanSoundServer lanSounds;
     private String importingTeam="UTA";
     private static final int IMPORT_WAV=910;
     private NhlApi.Board board; private NhlApi.Game selected;
@@ -73,15 +74,34 @@ public final class MainActivity extends Activity {
         // background sound, even if an earlier session had sound enabled.
         audioPrefs.edit().putBoolean("enabled",false).commit();
         gameAudio=new GameAudio(this);
+        lanSounds=new LanSoundServer(this,gameAudio,()->ui.post(()->{
+            if(resumed && page==3)render();
+        }));
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.4 started. Built-in and user WAV audio is available.");
+        log("GameDay Fire TV v0.4.1 started. Local iPhone audio management is available.");
         buildShell();render();
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
-    @Override protected void onResume(){super.onResume();resumed=true;ui.removeCallbacks(tick);serviceState="";ui.post(tick);}
-    @Override protected void onStop(){resumed=false;ui.removeCallbacks(tick);/* Foreground service keeps monitoring. */super.onStop();}
-    @Override protected void onDestroy(){ui.removeCallbacks(tick);if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);if(gameAudio!=null)gameAudio.stop();io.shutdown();super.onDestroy();}
+    @Override protected void onResume(){
+        super.onResume();resumed=true;
+        ui.removeCallbacks(tick);serviceState="";ui.post(tick);
+        if(page==3 && lanSounds!=null)lanSounds.start();
+    }
+    @Override protected void onStop(){
+        resumed=false;
+        ui.removeCallbacks(tick);
+        if(lanSounds!=null)lanSounds.stop(); // Never expose uploads while TV UI is hidden
+        /* Foreground NHL/WLED service keeps monitoring. */
+        super.onStop();
+    }
+    @Override protected void onDestroy(){
+        ui.removeCallbacks(tick);
+        if(scheduledRestore!=null)ui.removeCallbacks(scheduledRestore);
+        if(lanSounds!=null)lanSounds.stop();
+        if(gameAudio!=null)gameAudio.stop();
+        io.shutdown();super.onDestroy();
+    }
 
     private int dp(int n){return (int)(getResources().getDisplayMetrics().density*n+0.5f);}
     private GradientDrawable shape(int fill,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(12));if(stroke!=0)d.setStroke(dp(2),stroke);return d;}
@@ -115,6 +135,10 @@ public final class MainActivity extends Activity {
     private void subtitle(String title){body.addView(txt(title,15,MUTED,false));}
     private void render(){
         if(root==null)return;
+        if(lanSounds!=null){
+            if(resumed&&page==3)lanSounds.start();
+            else lanSounds.stop();
+        }
         String focusedTag=null;View focus=getCurrentFocus();
         if(focus!=null&&focus.getTag() instanceof String)focusedTag=(String)focus.getTag();
         nav.removeAllViews();body.removeAllViews();
@@ -192,6 +216,25 @@ public final class MainActivity extends Activity {
     private void pageAudio(){
         heading("GAME DAY SOUNDS");
         subtitle("Three original built-in horns or custom local WAV • independent of WLED");
+        if(lanSounds!=null){
+            if(lanSounds.ready()){
+                card("MANAGE SOUNDS FROM YOUR iPHONE",
+                    "Open Safari on the same Wi-Fi: "+lanSounds.url());
+                TextView access=txt("PAIRING CODE:  "+lanSounds.pairingCode(),30,GOLD,true);
+                body.addView(access);
+                subtitle("Enter the code in Safari. Keep this SOUND screen open while uploading. Server closes when you switch apps or leave the page.");
+            }else if(!lanSounds.error().isEmpty()){
+                card("LOCAL SOUND SERVER ERROR",lanSounds.error());
+                LinearLayout again=row();
+                buttons(again,action("RESTART LOCAL MANAGER",true,()->{
+                    lanSounds.restart();render();
+                }));body.addView(again);
+            }else{
+                card("Starting local sound manager",
+                    "Open this page from Safari after the Fire TV IP address and pairing code appear.");
+            }
+            subtitle("Private home network only • Port 8788 • No cloud • No port forwarding");
+        }
         final boolean enabled=audioPrefs.getBoolean("enabled",false);
         final int volume=AudioProfile.volume(audioPrefs.getInt("volume",50));
         LinearLayout master=row();
