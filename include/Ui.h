@@ -48,6 +48,7 @@ struct UiAction {
 class Ui {
 public:
     void begin();
+    void calibrationTarget(int index);
     void draw(const UiState &state);
     UiAction touch(int16_t x, int16_t y, const UiState &state);
     Page page() const { return page_; }

@@ -19,6 +19,8 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
     client.setInsecure();
     client.setTimeout(10000);
     HTTPClient http;
+    // getStream() bypasses HTTPClient chunk decoding. Request an unchunked body.
+    http.useHTTP10(true);
     http.setTimeout(10000);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     if (!http.begin(client, "https://api-web.nhle.com/v1/score/now")) {
@@ -45,6 +47,7 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
     filter["games"][0]["period"] = true;
     filter["games"][0]["clock"]["timeRemaining"] = true;
     // 16 games x small filtered entries, 16 KiB sufficient for ordinary NHL slate.
+    if (filter.overflowed()) { error="NHL filter overflow"; http.end(); return false; }
     DynamicJsonDocument doc(16384);
     DeserializationError result = deserializeJson(doc, http.getStream(),
         DeserializationOption::Filter(filter), DeserializationOption::NestingLimit(12));
@@ -88,6 +91,8 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
     client.setInsecure();
     client.setTimeout(10000);
     HTTPClient http;
+    // getStream() bypasses HTTPClient chunk decoding. Request an unchunked body.
+    http.useHTTP10(true);
     http.setTimeout(10000);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     const String url="https://api-web.nhle.com/v1/gamecenter/"+String(gameId)+"/play-by-play";
@@ -107,6 +112,7 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
     filter["plays"][0]["eventId"]=true;
     filter["plays"][0]["typeDescKey"]=true;
     filter["plays"][0]["details"]["eventOwnerTeamId"]=true;
+    if (filter.overflowed()) { error="PBP filter overflow"; http.end(); return false; }
     DynamicJsonDocument doc(72*1024);
     const DeserializationError parse=deserializeJson(doc,http.getStream(),
         DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(14));

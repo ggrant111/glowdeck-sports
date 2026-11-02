@@ -10,7 +10,8 @@ void Ui::begin() {
     pinMode(21, OUTPUT);
     digitalWrite(21, HIGH);
     tft_.init();
-    tft_.setRotation(1);
+    tft_.setRotation(GD_DISPLAY_ROTATION);
+    Serial.printf("Display rotation=%d size=%dx%d\n", GD_DISPLAY_ROTATION, tft_.width(), tft_.height());
     tft_.fillScreen(BG);
     tft_.setTextWrap(false);
 }
@@ -260,4 +261,14 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         if(y>=175&&y<204)return {x<160?ActionType::AudioPreviewAway:ActionType::AudioPreviewHome};
     }
     return {};
+}
+
+void Ui::calibrationTarget(int index) {
+    static const int x[] = {20, 300, 20}, y[] = {20, 20, 220};
+    tft_.fillScreen(BG);
+    tft_.setTextColor(FG, BG);
+    tft_.drawCentreString("Tap and release each cross", 160, 90, 2);
+    tft_.drawCentreString(String(index + 1) + " / 3", 160, 115, 2);
+    tft_.drawLine(x[index]-10,y[index],x[index]+10,y[index],TFT_WHITE);
+    tft_.drawLine(x[index],y[index]-10,x[index],y[index]+10,TFT_WHITE);
 }

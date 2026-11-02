@@ -12,6 +12,7 @@
 #include "NhlClient.h"
 #include "WledClient.h"
 #include "Ui.h"
+#include "TouchTransform.h"
 
 namespace {
 constexpr uint32_t NHL_INTERVAL_MS = 60000;
@@ -20,8 +21,7 @@ constexpr uint32_t UI_INTERVAL_MS = 3000;
 constexpr int TOUCH_CS = 33, TOUCH_IRQ = 36;
 constexpr int TOUCH_CLK = 25, TOUCH_MISO = 39, TOUCH_MOSI = 32;
 // Calibrate these constants if touch is mirrored/offset on your particular CYD board.
-constexpr int RAW_X_MIN = 200, RAW_X_MAX = 3800;
-constexpr int RAW_Y_MIN = 200, RAW_Y_MAX = 3800;
+gd::TouchTransform touchMap;
 SPIClass touchSpi(VSPI);
 XPT2046_Touchscreen touch(TOUCH_CS, TOUCH_IRQ);
 Ui ui;
@@ -542,13 +542,45 @@ void initWiFi() {
         banner("Wi-Fi connected");
     } else banner("Wi-Fi setup timed out. Reboot to retry.");
 }
+// Serial C at boot forces recalibration even if the existing map cannot hit UI controls.
+void calibrateTouch(bool force=false) {
+    Preferences prefs;
+    if (!prefs.begin("touchmap",false)) return;
+    const char *key = GD_DISPLAY_ROTATION == 0 ? "landscape" : "portrait";
+    if (!force && prefs.getBytesLength(key)==sizeof(touchMap)) {
+        prefs.getBytes(key,&touchMap,sizeof(touchMap)); prefs.end(); return;
+    }
+    int x[3],y[3]; bool ok=true;
+    for (int i=0;i<3 && ok;++i) {
+        ui.calibrationTarget(i);
+        uint32_t start=millis();
+        while(touch.touched() && millis()-start<20000) delay(10);
+        delay(150);
+        while(!touch.touched() && millis()-start<20000) delay(10);
+        if(millis()-start>=20000) { ok=false; break; }
+        long sx=0,sy=0; int n=0;
+        for(int j=0;j<8;++j) {
+            if(touch.touched()) { TS_Point p=touch.getPoint();sx+=p.x;sy+=p.y;++n; }
+            delay(15);
+        }
+        if(n<3) {ok=false;break;}
+        x[i]=sx/n;y[i]=sy/n;
+    }
+    gd::TouchTransform candidate;
+    if(ok && candidate.fit(x,y)) {
+        touchMap=candidate;prefs.putBytes(key,&touchMap,sizeof(touchMap));
+        Serial.println("Touch calibration saved");
+    } else Serial.println("Touch calibration cancelled; retaining previous mapping");
+    prefs.end();
+    lastTap=millis();
+}
 void pollTouch() {
     if (touchSuspendedForSd) return;
     if (!touch.touched() || millis() - lastTap < 230) return;
     TS_Point p = touch.getPoint();
     // XPT2046 setRotation(1) reports a rotated raw space for landscape.
-    int x = constrain(map(p.x, RAW_X_MIN, RAW_X_MAX, 0, 320), 0, 319);
-    int y = constrain(map(p.y, RAW_Y_MIN, RAW_Y_MAX, 0, 240), 0, 239);
+    int x = touchMap.screenX(p.x,p.y);
+    int y = touchMap.screenY(p.x,p.y);
     Serial.printf("Touch raw(%d,%d) screen(%d,%d)\n", p.x, p.y, x, y);
     lastTap = millis();
     doAction(ui.touch(x, y, uiState));
@@ -564,6 +596,22 @@ void setup() {
     touchSpi.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
     touch.begin(touchSpi);
     touch.setRotation(1);
+    Serial.println("Send C within 2 seconds to calibrate touch");
+    delay(2000);
+    bool force=false;
+    while(Serial.available()) { int c=Serial.read();if(c=='c'||c=='C')force=true; }
+#ifdef GD_TOUCH_CALIBRATE
+    calibrateTouch(force);
+#else
+    if(force) calibrateTouch(true);
+    else {
+        Preferences prefs;
+        if(prefs.begin("touchmap",false)) {
+            if(prefs.getBytesLength("portrait")==sizeof(touchMap)) prefs.getBytes("portrait",&touchMap,sizeof(touchMap));
+            prefs.end();
+        }
+    }
+#endif
     wled.begin();
     if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
     loadGameSettings();
