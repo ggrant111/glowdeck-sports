@@ -112,6 +112,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Hardware limitations:** ESP32 revision, audio amplifier, SD/touch shared VSPI behavior, volume, and actual custom file playback not tested; Fire OS mixing with YouTube TV and browser Safari sound not tested.
 - **Next:** land green source after parity checks, publish APK and firmware artifact, test Fire TV first, then physical CYD once available.
 
+### 2026-11-01 — v0.4 audio source released on main
+
+- **Released:** [Fire TV APK v0.4](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk), [ESP32 v0.4 firmware artifact](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590) and [hosted browser sound preview](https://glowdeck-gameday-simulator.lovable.app).
+- **Verified:** [ESP32 28 native tests + compilation](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590), [Android JVM tests + APK](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450), [v0.4 cross-platform audio parity](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) all passed on main. Generated 3 original test WAV files.
+- **Still pending:** actual CYD amplifier/microSD/touch bus/audio quality testing; sound while YouTube TV has audio focus; custom WAV import on a real Fire TV; real iPhone Safari audio test; full goal/lighting/audio synchronization.
+- **Risk:** ESP32 flash partition at 91.9%. v0.4 remains a hardware-unverified test release.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

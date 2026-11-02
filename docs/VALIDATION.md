@@ -82,3 +82,11 @@
 - PASS on feature branch: [Fire TV CI run 41382441636](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636) — Android audio-model JVM tests and native APK compile passed. Background playback/audio focus and custom-file import **not yet tested on physical Fire TV**.
 - A v0.4 cross-platform parity workflow now checks three built-in horns, custom WAV validator, team-specific goal-triggered sounds, safe default audio OFF, touchscreen/TV UI and browser mock.
 - Physical hardware acceptance OPEN: confirm CYD amplifier GPIO26, speaker polarity on amplifier outputs, full WAV playback, SD/touch bus restoration, OS-level audio focus in YouTube TV, and continued WLED restoration after a goal.
+
+## v0.4 final `main` release results
+
+- PASS: [ESP32 CI run 41383412590](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590) — 28/28 native cases, CYD firmware compiled and `GlowDeck-GameDay-v0.4-firmware` artifact uploaded. Flash 1,203,973 / 1,310,720 bytes (91.9%), RAM static 51,196 / 327,680 bytes (15.6%). Firmware compilation is not proof of physical speaker playback or safe touch/SD concurrency.
+- PASS: [Fire TV CI run 41383412450](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450) — Android JVM tests, APK compilation, checksum and GitHub test prerelease. APK: [GlowDeck-GameDay-FireTV-v0.4.apk](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk). Sound master safely resets OFF on fresh Activity creation.
+- PASS: [Cross-platform audio parity run 41383412448](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) — original horns, custom WAV validation, team-specific audio selection, safe mute and demo checks.
+- Browser: hosted [GlowDeck v0.4 simulator](https://glowdeck-gameday-simulator.lovable.app) reports 43 builder tests and Chromium mobile layout checks. **Not personally tested on iOS Safari**.
+- NOT RUN: actual speaker on CYD, custom WAV microSD transfer/read, hardware audio fidelity/volume, touch response while SD playback active, Fire TV native audio focus/mixing while YouTube TV is streaming, real combined audio+WLED live goal.

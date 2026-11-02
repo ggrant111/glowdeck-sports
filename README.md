@@ -4,11 +4,11 @@
 
 Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Cross-platform parity contract](docs/FEATURE_PARITY.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
 
-**CURRENT Fire TV v0.4: [Background NHL monitoring with optional goal audio](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.4.0-test)** — now uses an opt-in Android foreground service, so it can continue NHL play-by-play polling and WLED goal effects while the user watches a game in another Fire TV app. Monitoring requires explicit arming and can be stopped from the app or notification. [Installation and validation](firetv/README.md). This is a **test build**; real Fire TV/Fire OS endurance tests remain open.
+**CURRENT Fire TV v0.4: [Download the optional-audio APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk)** — now uses an opt-in Android foreground service, so it can continue NHL play-by-play polling and WLED goal effects while the user watches a game in another Fire TV app. Monitoring requires explicit arming and can be stopped from the app or notification. [Installation and validation](firetv/README.md). This is a **test build**; real Fire TV/Fire OS endurance tests remain open.
 
 **NEW: [GlowDeck GameDay Fire TV APK](firetv/README.md)** — a native, D-pad-controlled Fire TV test console. Select real NHL games, inspect play-by-play, pair a local WLED IP, preview team colors with restore, and optionally arm safe new-goal reactions. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). This is a **separate test platform**; it does not replace the ESP32 firmware.
 
-## Try v0.2 without the ESP32
+## Try v0.4 without the ESP32
 
 **[Launch the hosted, mobile-friendly simulator](https://glowdeck-gameday-simulator.lovable.app)** — open directly in Safari or any full browser, including on iPhone. No login or hardware required. The hosted simulator uses fake NHL scores, fake WLED devices, local in-browser controls, a goal timer, and a mock event log. It does **not** drive real lights or run the ESP32 firmware. The source for the browser demo in this repository is `simulator/web/index.html`; that self-contained HTML file works in a regular JavaScript-capable browser but **may show a blank device preview when opened in iOS/ChatGPT/GitHub attachment viewers that block inline JavaScript**. Use the hosted link instead.
 
@@ -41,7 +41,7 @@ Audio is OFF after every boot until you explicitly enable it. Audio starts from 
 
 To generate original sample WAV files with no external dependencies, run `python tools/make_test_wavs.py ./audio` and copy the generated files into `/audio/` on the SD card. Example audio names in the ESP32 web interface: `HORN1`, `HORN2`, `SIREN` (uppercase, no extension). See [complete sound setup/known limitations](docs/AUDIO_V04.md).
 
-**CI on feature branch:** [28/28 native tests + CYD firmware build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382843599); physical speaker, touch and microSD testing remains open. The project also includes [Fire TV audio tests and a compile](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636).
+**Final `main` CI:** [28/28 native tests + CYD firmware](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590), [Fire TV JVM tests and APK](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450), [cross-platform parity](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448). Physical speaker, touch, streaming audio-focus and microSD tests remain open.
 
 ## ESP32 v0.3: matching Fire TV v0.3 gameplay
 

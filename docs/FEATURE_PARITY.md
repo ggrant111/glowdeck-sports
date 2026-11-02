@@ -74,3 +74,10 @@ See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must sh
 - [ ] Real ESP32 speaker and SD tests, Fire TV audio focus while YouTube TV runs, and iPhone Safari audio preview.
 - [ ] Real multiple-goal sustained soak with optional sound and WLED restore timing verified on hardware.
 - [ ] Extend audio events beyond NHL goals (power play, intermission, wins).
+
+### Official v0.4 build verification
+
+- [x] [ESP32 CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590): 28/28 native tests, firmware artifact.
+- [x] [Fire TV CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450): JVM unit tests, debug APK release.
+- [x] [Audio parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448): static cross-platform checks passed.
+- [ ] Real CYD speaker/amplifier + microSD playback, Fire TV audio mixing in YouTube TV, actual iPhone Safari playback remain to be tested.

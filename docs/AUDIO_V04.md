@@ -1,6 +1,6 @@
 # GlowDeck GameDay v0.4 — Built-in and Custom Sounds
 
-**Status: v0.4 source IMPLEMENTED on Fire TV, ESP32, local browser mock; CI passed on feature branch, physical speaker/TV audio behavior NOT TESTED.** This is the cross-platform source of truth for GameDay audio behavior. See [Feature Parity](FEATURE_PARITY.md) and [Project Plan](../PROJECT_PLAN.md).
+**Status: v0.4 source IMPLEMENTED and CI-VERIFIED on `main` for ESP32, Fire TV and parity. Physical audio output and Fire TV streaming-app audio focus NOT TESTED.** This is the cross-platform source of truth for GameDay audio behavior. See [Feature Parity](FEATURE_PARITY.md) and [Project Plan](../PROJECT_PLAN.md).
 
 ## Decision
 
@@ -69,3 +69,11 @@ Do not mark these as complete until code, CI and hardware evidence exist.
 **Limitations:** ESP32 touch temporarily stops polling while custom microSD audio streams over VSPI, and restarts after completion; the display remains visible, WLED and NHL are intended to remain active. GPIO26 amplified speaker output must be physically confirmed for a specific CYD revision. Fire TV audio mixing/focus is OS-dependent and hardware-unverified. Uploaded audio is not hosted on a server. Never assume flash/build success proves an audible speaker output.
 
 **Software verification:** [ESP32 firmware and 28 native tests](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382843599); [Fire TV Android unit tests and APK build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636). The physical acceptance checklist remains open.
+
+## Official v0.4 software release evidence
+
+- [28/28 ESP32 tests and firmware](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590); compiled binary is downloadable via the GitHub Actions firmware artifact. Upload with PlatformIO, not firmware.bin at flash address 0.
+- [Fire TV audio JVM tests and v0.4 APK publishing](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450); [download the Fire TV v0.4 APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk).
+- [Shared v0.4 audio parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) passed, including team choice, built-in/custom source and mute defaults.
+- [Hosted sound simulator](https://glowdeck-gameday-simulator.lovable.app) published. Build provider reported 43 automated tests, but real Safari audio and physical lights remain unverified.
+- v0.4 ESP32 flash usage 91.9% of partition, so budget future additions carefully. Speaker circuit and shared VSPI microSD/touch bus require physical validation.

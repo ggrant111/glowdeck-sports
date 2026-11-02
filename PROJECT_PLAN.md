@@ -336,10 +336,10 @@ See the **[feature parity contract](docs/FEATURE_PARITY.md)** and its automated 
 The user selected **both** built-in/generated sound presets and user-imported custom audio. Details and acceptance criteria: **[Audio v0.4 specification](docs/AUDIO_V04.md)**. v0.4 audio source code now implemented and CI-tested on a feature branch; physical speaker and Fire TV audio-focus behavior remain **unverified**.
 
 - [x] Product decision: accept built-in original horn/beep presets **and** custom WAV per team and event, with independent volume, mute, preview, and safe fallback.
-- [x] ESP32 GPIO26 I2S/DAC output, synthesized horns, bounded microSD WAV streamer and strict header validation authored; compiler/native tests passed on feature branch.
-- [x] Fire TV 3 presets/custom imported WAV, team-specific preferences, default OFF background audio, and foreground service sound worker implemented and compiled. Fire OS focus behavior pending hardware test.
-- [x] Local HTML simulator updated with three original horns, per-team custom WAV and mock goal audio. Hosted Lovable simulator update submitted; deployment and Safari verification pending.
-- [x] C++ WAV validation tests, JVM audio tests, and v0.4 parity checker added; CI passing on feature branch; full release validation after merge pending.
+- [x] ESP32 GPIO26 I2S/DAC, 3 synthesized horns, bounded SD WAV streamer and strict validation authored; [28/28 native tests + ESP32 compiler passed on main](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590), firmware artifact uploaded.
+- [x] Fire TV 3 built-in sounds/custom import, team-specific preferences, background audio default OFF on app launch and foreground service audio worker implemented; [APK build and tests passed on main](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450). Fire OS focus pending hardware verification.
+- [x] Local HTML and [hosted simulator](https://glowdeck-gameday-simulator.lovable.app) updated with three original horns, per-team custom WAV and mock goal audio; 43 tests reported by hosted builder. Actual Safari audio playback unverified.
+- [x] C++ WAV validation tests, JVM audio tests and [audio parity check passed on main](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448).
 - [ ] Validate physical CYD speaker/amplifier revision and sound playback without disrupting Wi-Fi, NHL event detection, touch input or WLED restoration.
 
 **Scope safety:** audio failure must never prevent lighting restoration; custom files are user supplied. Do not automatically enable background TV sound or speaker output until user opts in.
@@ -350,3 +350,12 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 - SD and touch both use VSPI; v0.4 temporarily pauses touch polling during custom audio playback. Task/network WLED restore should still operate, but this needs real-board verification and later touch/SD concurrency improvement.
 - Fire TV v0.4 may not have file picker installed and Android's audio focus can vary across streaming apps. Test on YouTube TV, then verify WLED scene restoration unchanged.
 - Initial v0.4 triggers sounds for **NHL goal events only**. Non-goal sound triggers (periods, wins, power plays) stay on the roadmap.
+
+### v0.4 shipped software build evidence (2026-11-01)
+
+- [x] [ESP32 `main` CI 41383412590](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412590): 28 native tests passed; CYD firmware compiled and artifact `GlowDeck-GameDay-v0.4-firmware` uploaded. Flash use **91.9% of current app partition** (1,203,973 of 1,310,720 bytes); monitor headroom before adding more features.
+- [x] [Fire TV `main` CI 41383412450](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450): JUnit tests passed and updated v0.4 Android debug APK was built, signed and uploaded to [GitHub release](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk).
+- [x] [Parity CI 41383412448](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) passed on `main` with v0.4 audio contract.
+- [x] [Hosted browser simulator](https://glowdeck-gameday-simulator.lovable.app) published with SOUND tab. Provider reports 43 tests and mobile Chromium checks, not real Safari sound validation.
+- [ ] Speaker DAC output, CYD touch/SD interaction, actual WLED scene+audio synchronization and long-run device reliability remain untested.
+- [ ] Fire TV sound mixing with YouTube TV and custom WAV document picker behavior remain untested.

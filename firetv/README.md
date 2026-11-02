@@ -62,7 +62,7 @@ For original test WAVs, run `python tools/make_test_wavs.py output` from the rep
 
 **Audio doesn't interrupt WLED restoration.** Goal audio starts on the same event after the selected TV delay as lights. If playback fails, WLED still restores after eight seconds. Custom missing WAV falls back to built-in Horn. In YouTube TV and other video apps, Fire OS may duck, mix or mute audio; foreground-service survival doesn't prove audio-focus compatibility. Test at low volume. No background sound is enabled automatically after install.
 
-**v0.4 software evidence:** [Android tests + debug APK build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636); Fire TV speaker, focus and actual custom file import remain **hardware unverified**.
+**v0.4 software evidence:** [Android `main` tests + debug APK build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450); Fire TV speaker, audio focus and custom import remain **hardware unverified**. Audio defaults OFF on a fresh app launch even if an earlier session enabled it.
 
 ## v0.4 celebration modes
 
