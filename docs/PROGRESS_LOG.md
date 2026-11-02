@@ -99,6 +99,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Outstanding:** Real CYD touchscreen, RAM/PBP API and WLED acceptance after board delivery; Fire TV v0.3 BOTH physical goal test; actual mobile Safari interaction check.
 - **Standing policy:** Implement and validate shared user-visible features across Fire TV, ESP32, browser and parity contract with every new change.
 
+### 2026-11-01 — v0.4 audio product decision: built-in AND custom
+
+- **User requirement:** Allow built-in/generated original GameDay audio presets and user-supplied custom WAV files, assigned by team and event. Do not force choosing only one source across the entire product.
+- **Planned architecture:** Nonblocking ESP32 GPIO26 DAC audio + microSD PCM WAV; Fire TV local audio assets/opt-in background audio; browser-only simulated audio preview. Preserve existing WLED goal detection/restore behavior if audio fails.
+- **Status:** Specification only. No new audio firmware, APK, or functioning physical speaker test has been delivered yet. See [Audio v0.4 spec](AUDIO_V04.md).
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

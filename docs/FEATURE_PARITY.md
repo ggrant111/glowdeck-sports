@@ -58,3 +58,7 @@ This file must be reviewed with **every new feature** and **every behavior chang
 - [x] Hosted browser v0.3 deployed at https://glowdeck-gameday-simulator.lovable.app with emulated-mobile test report.
 - [ ] Manual iPhone Safari touch check still needed.
 - [ ] Real ESP32 NHL TLS behavior, memory, touch alignment, Wi-Fi, and WLED state restoration.
+
+## v0.4 Audio parity requirement (DESIGN, NOT IMPLEMENTED)
+
+See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must ship intentionally on both **ESP32** and **Fire TV**, with a browser mock when applicable. Required behavior: built-in original sound library **and** user-supplied custom WAV clips; independent per-team/event selection; safe default mute, volume and test/preview; same eligible NHL goal identity and TV delay as lighting; audio failure must not interrupt WLED restoration; no hardware auto playback without explicit enabling. Hardware-dependent audio outputs differ (GPIO26 via speaker amplifier on CYD; Android audio with OS focus on Fire TV). **CI audio-parity checks have not been written yet.**

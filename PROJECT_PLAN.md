@@ -330,3 +330,16 @@ See the **[feature parity contract](docs/FEATURE_PARITY.md)** and its automated 
 - [ ] Review and fix `WiFiClientSecure::setInsecure()` before production release.
 
 **Why hardware and software statuses differ:** The user's Fire TV already produced two real Anaheim goal celebrations, but their CYD touchscreen board has not arrived. The v0.3 ESP32 build can pass CI without validating physical touch, memory or light restoration.
+
+## 14. v0.4 audio: built-in PLUS custom sound support — design accepted (2026-11-01)
+
+The user selected **both** built-in/generated sound presets and user-imported custom audio. Details and acceptance criteria: **[Audio v0.4 specification](docs/AUDIO_V04.md)**. This is **planned, not currently running firmware**.
+
+- [x] Product decision: accept built-in original horn/beep presets **and** custom WAV per team and event, with independent volume, mute, preview, and safe fallback.
+- [ ] Implement nonblocking GPIO26/I2S-DAC audio output, microSD WAV reader and validation on the ESP32.
+- [ ] Implement matching source choices and team/event settings on Fire TV, preserving background audio-focus behavior and a default-off option.
+- [ ] Add browser previews for built-in and user-provided WAV with no cloud upload or real WLED control.
+- [ ] Extend parity contract, automated tests and release notes for audio behavior.
+- [ ] Validate physical CYD speaker/amplifier revision and sound playback without disrupting Wi-Fi, NHL event detection, touch input or WLED restoration.
+
+**Scope safety:** audio failure must never prevent lighting restoration; custom files are user supplied. Do not automatically enable background TV sound or speaker output until user opts in.
