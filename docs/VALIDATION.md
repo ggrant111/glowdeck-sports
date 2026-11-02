@@ -71,3 +71,7 @@
 - Cross-platform Python parity check compares 32 team-color RGB codes, UI modes, NHL goal IDs, polling intervals, cooldown and restore conventions against the working Fire TV implementation.
 - GitHub Actions firmware build and native tests **PASSED on development branch** (initial run 41379355680). Final post-documentation commit and main-branch build separately tracked.
 - NOT RUN ON PHYSICAL CYD: touch calibration, PBP filter heap/resource usage, Wi-Fi, TLS correctness, WLED discovery, complete eight-second scene restoration, reboot recovery, and multi-hour soak. Never claim this is hardware-verified.
+
+- PASS (ESP32 v0.3 `main` firmware): [Actions run 41380024037](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024037) passed **23/23** native tests, compiled ESP32-2432S028R firmware and uploaded `GlowDeck-GameDay-v0.3-firmware` artifact. This is not physical hardware validation.
+- PASS (cross-platform parity): [Actions run 41380024002](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024002) verified matching 32 NHL RGB values, Away/Home/Both modes, NHL PBP goal IDs, eight-second effects, 20-second cooldown and restore hooks.
+- Hosted simulator https://glowdeck-gameday-simulator.lovable.app published with v0.3 Away/Home/Both behavior. Lovable reported 21 tests and emulated 390×844 mobile checks passing. Actual Safari and ESP32 hardware tests pending.

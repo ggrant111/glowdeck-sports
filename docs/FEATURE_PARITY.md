@@ -52,7 +52,9 @@ This file must be reviewed with **every new feature** and **every behavior chang
 - [x] Fire TV background service, actual goal reaction and visible scene restoration on a real WLED (v0.2 baseline).
 - [x] Fire TV v0.3 AWAY/HOME/BOTH software build and tests.
 - [x] ESP32 v0.3 Away/Home/Both selector and PBP goal engine authored.
-- [ ] ESP32 v0.3 build/CI on `main` and physical CYD validation.
+- [x] ESP32 v0.3 [build/CI on `main`](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024037) passed: 23/23 native tests and firmware image built.
+- [ ] Physical CYD hardware acceptance still open.
 - [ ] Fire TV v0.3 BOTH mode observed for opposing goals on a real NHL game.
-- [ ] Hosted browser v0.3 deployment and manual iPhone touch check.
+- [x] Hosted browser v0.3 deployed at https://glowdeck-gameday-simulator.lovable.app with emulated-mobile test report.
+- [ ] Manual iPhone Safari touch check still needed.
 - [ ] Real ESP32 NHL TLS behavior, memory, touch alignment, Wi-Fi, and WLED state restoration.

@@ -92,6 +92,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Verification:** Early parity-branch CI passed PlatformIO native tests and ESP32 compilation; latest commit/build and hosted deployment status to be recorded below. No real CYD hardware validation.
 - **Next:** verify final CI, merge branch, publish firmware artifact and continue board bring-up when hardware arrives.
 
+### 2026-11-01 — v0.3 ESP32 and parity on main, simulator published
+
+- **Verified:** [Firmware CI 41380024037](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024037) passed 23/23 native tests, CYD compilation and firmware artifact upload. [Parity CI 41380024002](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024002) passed; all 32 matching NHL team colors checked.
+- **Published:** Updated existing [GameDay browser simulator](https://glowdeck-gameday-simulator.lovable.app) with Away/Home/Both selection, per-game settings, 8-second simulated restoration, preserving live read-only NHL mode.
+- **Outstanding:** Real CYD touchscreen, RAM/PBP API and WLED acceptance after board delivery; Fire TV v0.3 BOTH physical goal test; actual mobile Safari interaction check.
+- **Standing policy:** Implement and validate shared user-visible features across Fire TV, ESP32, browser and parity contract with every new change.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

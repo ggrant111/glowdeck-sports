@@ -321,9 +321,9 @@ See the **[feature parity contract](docs/FEATURE_PARITY.md)** and its automated 
 - [x] Automatic scoring-team color, **8-second** WLED effect (was 10s) and existing NVS crash-safe restoration.
 - [x] Native tests for both-team colors, network recovery, duplicate IDs, wrong teams and 8-second restoration; PlatformIO compiler CI on parity branch.
 - [x] Local static browser simulator upgraded with Away/Home/Both and 8-second mock restoration.
-- [x] Hosted Lovable browser simulator updated toward v0.3 (separate provider); mobile test report passed. Publication and Safari verification tracked separately.
-- [x] Added static cross-platform parity workflow ensuring team colors, UI modes, PBP source, timing and restore hooks agree.
-- [ ] Merge green ESP32 v0.3 parity branch to `main` after CI finishes, record exact run.
+- [x] Hosted Lovable browser simulator updated to v0.3 and published at https://glowdeck-gameday-simulator.lovable.app; 21 provider tests and emulated 390×844 mobile checks reported passing. Actual iPhone Safari check remains open.
+- [x] Added [cross-platform parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024002) ensuring 32-team colors, UI modes, PBP source, timing and restore hooks agree; passed on `main`.
+- [x] Merged ESP32 v0.3 into `main`; [firmware CI run 41380024037](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024037) passed **23/23 native Unity tests**, compiled CYD firmware, and uploaded `GlowDeck-GameDay-v0.3-firmware` artifact.
 - [ ] **Hardware acceptance blocked until ESP32 arrives:** touch map/buttons, TLS PBP fetch and heap size, Wi-Fi reconnect, mDNS WLED, user-selected team colors, 8-second physical restore, NVS reboot journal and 2-hour soak.
 - [ ] Fire TV v0.3 BOTH mode must be observed with goals from both sides; Fire TV v0.2 prior physical single-team success is not proof of v0.3.
 - [ ] Hosted simulator v0.3 must be verified with an actual mobile Safari session.
