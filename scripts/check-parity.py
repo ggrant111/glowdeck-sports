@@ -74,9 +74,36 @@ def main():
             'restoreSavedState()' in fire,
             "Both controllers journal and restore WLED state")
     require("chooseMode('both')" in web and "s.mode==='both'" in web and
-            "v0.3" in web,
+            "v0.4" in web,
             "Local browser demo includes v0.3 Both mode")
-    print("ALL CHECKS PASSED: cross-platform parity contract v0.3")
+    audio = read("src/AudioPlayer.cpp")
+    audio_ui = read("src/Ui.cpp")
+    audio_model = read("src/AudioModel.cpp")
+    android_audio = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/GameAudio.java")
+    android_model = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/AudioProfile.java")
+    android_ui = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/MainActivity.java")
+    require(all(x in audio for x in ['SoundKind::Horn', 'SoundKind::DoubleHorn',
+                                   'SoundKind::Siren', 'SoundKind::CustomWav']),
+            "ESP32 supports three original sounds and custom WAV")
+    require(all(x in android_audio for x in ['AudioProfile.HORN', 'AudioProfile.DOUBLE',
+                                          'AudioProfile.SIREN', 'AudioProfile.CUSTOM']),
+            "Fire TV supports three original sounds and custom WAV")
+    require('inspectCanonicalWav' in audio_model and 'wavBytes' in android_model and
+            '16000' in audio_model and '16000' in android_model,
+            "ESP32 and Fire TV validate 16-kHz PCM WAV input")
+    require('Page::Audio' in audio_ui and 'AudioPreviewAway' in audio_ui and
+            'pageAudio()' in android_ui and 'PREVIEW' in android_ui,
+            "Both platforms expose audio preferences and standalone preview")
+    require('soundEnabled=false' in read("src/main.cpp") and
+            'getBoolean("enabled",false)' in android_audio,
+            "Goal audio defaults OFF on both physical platforms")
+    require('reactions.lastGoalHome()' in read("src/main.cpp") and
+            'sound.play(team,false)' in fire,
+            "Audio follows the same scoring-side lighting event on both platforms")
+    require('function playSound(team,preview=false)' in web and
+            "s.sound[team]" in web and "customBuffers" in web,
+            "Browser demo includes per-team built-in/custom sound preview")
+    print("ALL CHECKS PASSED: cross-platform parity contract v0.4")
 
 
 if __name__ == "__main__":
