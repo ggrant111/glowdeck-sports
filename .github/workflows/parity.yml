@@ -1,0 +1,23 @@
+name: Cross-platform GameDay parity
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'firetv/**'
+      - 'simulator/**'
+      - 'scripts/check-parity.py'
+      - 'docs/FEATURE_PARITY.md'
+      - '.github/workflows/parity.yml'
+  pull_request:
+  workflow_dispatch:
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify cross-platform feature contract
+        run: python3 scripts/check-parity.py
