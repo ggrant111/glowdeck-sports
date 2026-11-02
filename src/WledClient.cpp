@@ -110,6 +110,8 @@ bool WledClient::applyColor(size_t index, uint32_t rgb, String &error) {
     doc["bri"] = 160;
     JsonObject seg = doc.createNestedArray("seg").createNestedObject();
     seg["id"] = 0;
+    seg["on"] = true;
+    seg["frz"] = false;
     seg["fx"] = 0;
     JsonArray col = seg.createNestedArray("col").createNestedArray();
     col.add((rgb >> 16) & 0xff);
