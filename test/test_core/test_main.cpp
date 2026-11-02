@@ -60,6 +60,12 @@ void test_disarm_restores_and_retry_after_wifi();
 void test_reboot_journal_recovery_without_rearming();
 void test_score_final_and_multi_side_jump_suppress();
 void test_timer_wraparound();
+void test_away_home_both_modes();
+void test_both_team_uses_scoring_color();
+void test_unknown_goal_owner_never_triggers();
+void test_pause_resumes_by_baseline_without_replay();
+void test_invalid_teams_and_invalid_mode();
+void test_multi_goal_jump_and_duplicate_event_ids();
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_goal_increase_live);
@@ -79,5 +85,11 @@ int main(int, char**) {
     RUN_TEST(test_reboot_journal_recovery_without_rearming);
     RUN_TEST(test_score_final_and_multi_side_jump_suppress);
     RUN_TEST(test_timer_wraparound);
+    RUN_TEST(test_away_home_both_modes);
+    RUN_TEST(test_both_team_uses_scoring_color);
+    RUN_TEST(test_unknown_goal_owner_never_triggers);
+    RUN_TEST(test_pause_resumes_by_baseline_without_replay);
+    RUN_TEST(test_invalid_teams_and_invalid_mode);
+    RUN_TEST(test_multi_goal_jump_and_duplicate_event_ids);
     return UNITY_END();
 }
