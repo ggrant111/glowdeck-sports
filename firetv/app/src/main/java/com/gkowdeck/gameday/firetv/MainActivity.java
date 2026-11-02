@@ -71,6 +71,7 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1001);
         }
         prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);
+        NhlApi.hour24=prefs.getBoolean("hour24",false);
         audioPrefs=getSharedPreferences("gameday-audio",MODE_PRIVATE);
         // Privacy/safety: a freshly launched Activity never silently re-enables
         // background sound, even if an earlier session had sound enabled.
@@ -171,6 +172,8 @@ public final class MainActivity extends Activity {
     private void pageScores(){
         heading("NHL SCORES / SCHEDULE");subtitle("Direct NHL API  •  "+lastScoreAt+"  •  60-second updates");
         LinearLayout tools=row();buttons(tools,action("REFRESH NHL",true,()->refreshScores(true)));body.addView(tools);
+        LinearLayout timeFormat=row();buttons(timeFormat,action("TIME FORMAT: "+(NhlApi.hour24?"24-HOUR":"12-HOUR"),false,()->{
+            NhlApi.hour24=!NhlApi.hour24;prefs.edit().putBoolean("hour24",NhlApi.hour24).apply();render();}));body.addView(timeFormat);
         LinearLayout days=row();
         for(int d=0;d<7;d++){final int day=d;days.addView(action(d==0?"TODAY":d==1?"TOMORROW":"+"+d+" DAYS",scheduleDay==d,()->{scheduleDay=day;refreshScores(true);}),new LinearLayout.LayoutParams(0,dp(60),1));}
         body.addView(days);subtitle("Start times use this Fire TV's timezone. Select any day in the next 7 days.");

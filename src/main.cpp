@@ -89,6 +89,7 @@ WebServer web(80);
 gd::Scoreboard scores;
 gd::Game trackedGame;
 uint8_t scheduleDay=0;
+bool hour24=true;
 bool resumeEnabled=false,resumePending=false;
 String resumeIp;
 uint32_t lastNhl = 0, lastPbp = 0;
@@ -107,6 +108,7 @@ void banner(const String &s) {
     Serial.println(String("GameDay: ") + s);
 }
 void redraw() {
+    uiState.hour24=hour24;
     uiState.tracked=selectedGame();uiState.scheduleDay=scheduleDay;uiState.resumeEnabled=resumeEnabled;
     uiState.ddp=wled.ddpEnabled;uiState.effectSelection=effectSelection;uiState.effectMask=effectMask;
     uiState.wifiConnected = WiFi.status() == WL_CONNECTED;
@@ -152,6 +154,7 @@ void loadGameSettings() {
     soundEnabled=false; // deliberate user opt-in on each boot
     Preferences resume;
     if(resume.begin("gd-resume",false)) {
+        hour24=resume.getBool("hour24",true);
         resumeEnabled=resume.getBool("enabled",false);
         resumePending=resumeEnabled&&resume.getBool("armed",false);
         if(resumePending && resume.getBytesLength("game")==sizeof(trackedGame)) {
@@ -328,6 +331,7 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
     page += "<section><h2>Schedule: next 7 days</h2>";
     for(int day=0;day<7;++day)page+="<form method='post' action='/schedule'><button name='day' value='"+String(day)+"'>"+(day==0?String("Today"):day==1?String("Tomorrow"):String("Day +")+day)+"</button></form>";
     page+="<p>Schedule date: "+String(scores.date)+". Times use configured timezone (default UTC).</p><form method='post' action='/timezone'><select name='tz'><option value='UTC0'>UTC</option><option value='MST7MDT,M3.2.0,M11.1.0'>Mountain</option><option value='PST8PDT,M3.2.0,M11.1.0'>Pacific</option><option value='CST6CDT,M3.2.0,M11.1.0'>Central</option><option value='EST5EDT,M3.2.0,M11.1.0'>Eastern</option></select><button>Save timezone</button></form>";
+    page+="<form method='post' action='/timeformat'><label>Time format <select name='format'><option value='12'"+String(!hour24?" selected":"")+">12-hour (7:00 PM)</option><option value='24'"+String(hour24?" selected":"")+">24-hour (19:00)</option></select></label><button>Save time format</button></form>";
     page+="<form method='post' action='/resume'><button>Resume after reboot: "+String(resumeEnabled?"ON":"OFF")+"</button></form></section>";
     page += "<section><h2>Status</h2><p>Wi-Fi: " + htmlEscape(WiFi.SSID()) + "<br>NHL: ";
     page += uiState.nhlConnected ? "connected" : "unavailable";
@@ -516,6 +520,15 @@ void setupWeb() {
     web.on("/", HTTP_GET, webHome);
     web.on("/schedule",HTTP_POST,[]{scheduleDay=constrain(web.arg("day").toInt(),0,6);uiState.gamePage=0;refreshNhl();redirectHome();});
     web.on("/resume",HTTP_POST,[]{resumeEnabled=!resumeEnabled;if(!resumeEnabled)resumePending=false;saveResume();redirectHome();});
+    web.on("/timeformat",HTTP_POST,[]{
+        const String format=web.arg("format");
+        if(format!="12"&&format!="24"){web.send(400,"text/plain","Choose 12 or 24");return;}
+        Preferences p;
+        if(!p.begin("gd-resume",false)){web.send(500,"text/plain","Unable to save setting");return;}
+        const bool saved=p.putBool("hour24",format=="24")==1;p.end();
+        if(!saved){web.send(500,"text/plain","Unable to save setting");return;}
+        hour24=format=="24";banner(hour24?"Time format: 24-hour":"Time format: 12-hour");redraw();redirectHome();
+    });
     web.on("/timezone",HTTP_POST,[]{
         String zone=web.arg("tz");
         if(zone=="UTC0"||zone=="MST7MDT,M3.2.0,M11.1.0"||zone=="PST8PDT,M3.2.0,M11.1.0"||zone=="CST6CDT,M3.2.0,M11.1.0"||zone=="EST5EDT,M3.2.0,M11.1.0") {
@@ -663,7 +676,7 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.5.3 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.5.4 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.scoreboard = &scores;
     uiState.leds = &wled;
     ui.begin();

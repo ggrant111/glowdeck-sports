@@ -13,6 +13,7 @@ struct UiState {
     int ledPage = 0;
     const gd::Game *tracked=nullptr;
     uint8_t scheduleDay=0;
+    bool hour24=true;
     bool resumeEnabled=false;
     bool waiting = false;
     bool wifiConnected = false;

@@ -21,12 +21,14 @@ jobs:
         run: pio test -e native
       - name: Check touch coordinate transforms
         run: c++ -std=c++17 -Iinclude scripts/check-touch.cpp -o /tmp/check-touch && /tmp/check-touch
+      - name: Check clock formats
+        run: c++ -std=c++17 -Iinclude scripts/check-clock.cpp -o /tmp/check-clock && /tmp/check-clock
       - name: Compile CYD firmware
         run: pio run -e ${{ matrix.board }}
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.5.3-${{ matrix.board }}-firmware
+          name: GlowDeck-GameDay-v0.5.4-${{ matrix.board }}-firmware
           path: |
             .pio/build/${{ matrix.board }}/firmware.bin
             .pio/build/${{ matrix.board }}/firmware.elf

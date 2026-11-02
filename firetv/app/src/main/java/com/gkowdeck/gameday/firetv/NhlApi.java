@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class NhlApi {
+    static boolean hour24=false;
+    static String clockPattern(){return hour24?"HH:mm":"h:mm a";}
     static final String ROOT="https://api-web.nhle.com/v1";
     static final class Game {
         long id;String away,home,state,clock,startTime="";int awayId,homeId,awayScore,homeScore,period;
@@ -14,7 +16,8 @@ final class NhlApi {
         String localStart(){
             try {java.text.SimpleDateFormat utc=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",java.util.Locale.US);
                 utc.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
-                return java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(utc.parse(startTime));
+                java.util.Date date=utc.parse(startTime);
+                return java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT).format(date)+" "+new java.text.SimpleDateFormat(clockPattern(),java.util.Locale.getDefault()).format(date);
             }catch(Exception e){return "Start time TBD";}
         }
         String status(){

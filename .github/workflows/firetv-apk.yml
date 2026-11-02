@@ -32,23 +32,23 @@ jobs:
       - name: Verify APK and checksum
         run: |
           test -s firetv/app/build/outputs/apk/debug/app-debug.apk
-          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.5.2.apk
-          sha256sum GlowDeck-GameDay-FireTV-v0.5.2.apk > firetv-v0.5.2.sha256
+          cp firetv/app/build/outputs/apk/debug/app-debug.apk GlowDeck-GameDay-FireTV-v0.5.4.apk
+          sha256sum GlowDeck-GameDay-FireTV-v0.5.4.apk > firetv-v0.5.4.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-FireTV-v0.5.2-debug-APK
+          name: GlowDeck-GameDay-FireTV-v0.5.4-debug-APK
           path: |
-            GlowDeck-GameDay-FireTV-v0.5.2.apk
-            firetv-v0.5.2.sha256
+            GlowDeck-GameDay-FireTV-v0.5.4.apk
+            firetv-v0.5.4.sha256
           retention-days: 90
-      - name: Publish standalone Fire TV v0.5.2 test release
+      - name: Publish standalone Fire TV v0.5.4 test release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=firetv-v0.5.2-test
+          TAG=firetv-v0.5.4-test
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.5.2 (background monitoring test)' --prerelease --latest=false \
-              --notes 'Upcoming-game arming, next-seven-days browsing, local start times and optional reboot resume. ESP32 device paging included in matching firmware. Hardware validation pending. Trusted LAN HTTP only, keep SOUND page open. Ephemeral debug key may require uninstall.'
+            gh release create "$TAG" --title 'GlowDeck GameDay Fire TV v0.5.4 (background monitoring test)' --prerelease --latest=false \
+              --notes 'Saved 12-hour/24-hour display choice alongside upcoming-game arming, schedule browsing and optional reboot resume. ESP32 device paging included in matching firmware. Hardware validation pending. Trusted LAN HTTP only, keep SOUND page open. Ephemeral debug key may require uninstall.'
           fi
-          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.5.2.apk firetv-v0.5.2.sha256 --clobber
+          gh release upload "$TAG" GlowDeck-GameDay-FireTV-v0.5.4.apk firetv-v0.5.4.sha256 --clobber

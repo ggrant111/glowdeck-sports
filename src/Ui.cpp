@@ -1,7 +1,8 @@
 #include "Ui.h"
 #include <time.h>
+#include "ClockFormat.h"
 namespace {
-String localStart(const char *stamp) {
+String localStart(const char *stamp,bool hour24) {
     struct tm utc={};
     if(!strptime(stamp,"%Y-%m-%dT%H:%M:%S",&utc))return "TBD";
     // mktime uses local TZ; compensate through timegm equivalent using UTC civil conversion.
@@ -9,7 +10,7 @@ String localStart(const char *stamp) {
     const int era=(year>=0?year:year-399)/400;const unsigned yoe=year-era*400;
     const unsigned doy=(153*(month+(month>2?-3:9))+2)/5+utc.tm_mday-1;
     time_t epoch=(era*146097+int(yoe*365+yoe/4-yoe/100+doy)-719468)*86400LL+utc.tm_hour*3600+utc.tm_min*60;
-    struct tm local;localtime_r(&epoch,&local);char out[10];strftime(out,sizeof(out),"%H:%M",&local);return out;
+    struct tm local;localtime_r(&epoch,&local);char out[12];gd::formatClock(out,sizeof(out),local.tm_hour,local.tm_min,hour24);return out;
 }
 }
 
@@ -85,7 +86,7 @@ void Ui::scores(const UiState &state) {
         tft_.drawString(matchup, 14, y+8, 2);
         char score[14];
         snprintf(score, sizeof(score), "%u - %u", g.awayScore, g.homeScore);
-        tft_.drawCentreString(gd::isUpcoming(g)?localStart(g.startTime):String(score),196,y+8,2);
+        tft_.drawCentreString(gd::isUpcoming(g)?localStart(g.startTime,state.hour24):String(score),196,y+8,2);
         tft_.setTextColor(gd::isLive(g) ? GOLD : MUTED, selected ? SELECT : CARD);
         tft_.drawRightString(gd::gameStateText(g), 303, y+8, 2);
     }
@@ -102,7 +103,7 @@ void Ui::gameday(const UiState &state) {
     tft_.drawCentreString(String(game->away) + "  " + String(game->awayScore) + " : " +
              String(game->homeScore) + "  " + game->home, 160, 42, 4);
     tft_.setTextColor(MUTED, BG);
-    tft_.drawCentreString(String(gd::gameStateText(*game))+(gd::isUpcoming(*game)?" "+localStart(game->startTime):String("")), 160, 73, 2);
+    tft_.drawCentreString(String(gd::gameStateText(*game))+(gd::isUpcoming(*game)?" "+localStart(game->startTime,state.hour24):String("")), 160, 73, 2);
     tft_.drawString("CELEBRATE", 10, 87, 2);
     button(8, 105, 96, 29, game->away,
         state.celebrationMode == gd::CelebrationMode::Away ? TEAL : CARD);
@@ -211,6 +212,7 @@ String Ui::renderKey(const UiState &s) const {
         key += String(value.length()); key += ':'; key += value;
     };
     add(String(static_cast<int>(page_)));
+    add(String(s.hour24));
     add(String(s.scheduleDay));add(String(s.resumeEnabled));
     if(s.tracked){add(String(s.tracked->id));add(s.tracked->state);add(s.tracked->startTime);add(String(s.tracked->awayScore));add(String(s.tracked->homeScore));add(s.tracked->clock);}
     add(String(s.ledPage)); add(String(s.waiting));
