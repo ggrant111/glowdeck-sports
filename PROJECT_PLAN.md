@@ -283,8 +283,9 @@ With the CYD touchscreen still unavailable, we have added a **native Fire TV APK
 - [x] WLED state journaling before any goal scene, 8-second automatic restoration, explicit STOP restoration attempt, and journal retained if restore fails.
 - [x] Block manual WLED changes, game switches, or delay changes while monitoring is active.
 - [x] Seven additional JVM safety rule tests and portable Java smoke assertions; APK built and released by [CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957).
-- [ ] **Hardware acceptance:** sideload on Fire TV, grant notification permission if asked, verify notification and foreground service status.
+- [x] **Initial real Fire TV acceptance (2026-11-01):** app sideloaded; user confirmed GAME / EVENTS displays ARMED after switching to YouTube TV, and Fire TV `dumpsys` reported `GameDayService` foreground with notification ID 1227 and roughly 7m41s service elapsed. Notification action and 30-minute endurance remain untested.
 - [ ] **Switching test:** arm for an actual live NHL matchup; press Home and watch another streaming app at least 30 minutes; confirm polling/logs and goal detection continue.
+- [x] **Initial WLED manual test (2026-11-01):** user reports the real eight-second WLED color test works. Exact saved state restoration and automatic goal-driven effects still need explicit validation.
 - [ ] **Lighting test:** verify exact WLED segment 0 and master state restored after an actual new favorite goal, including a deliberate STOP during an active scene.
 - [ ] **Recovery test:** disconnect Wi-Fi during polling; confirm PAUSED state, no old goals replay on reconnect; force-stop/relaunch and check any outstanding restore journal.
 - [ ] **Endurance:** observe at least 3 live NHL games on a real Fire TV across relevant Fire OS versions; record API latency, duplicate/missed goals and service lifecycle failures.
