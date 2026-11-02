@@ -131,3 +131,19 @@ Local cross-platform static checks, 175 C++/browser pixel vectors, native simula
 - **175 C++/browser pixel vectors**, browser event-handler tests with deterministic timers, static parity checks and **9 bridge regression tests passed**.
 - Browser visual/mobile test could not run: Chromium download was unavailable. Hosted simulator remains unchanged.
 - Full Gradle APK packaging/Android CI and physical tests remain pending. The user authorized the GitHub branch push and APK build on 2026-11-02; remote build results are recorded in the follow-up entry.
+
+
+## v0.5.0 published build verification — 2026-11-02
+
+Source commit: `e54e752f62823847776f43a7b2bf34df00f67bc3`, branch `feature/ddp-event-effects`, draft PR https://github.com/ggrant111/glowdeck-sports/pull/1 .
+
+- Fire TV Gradle JVM tests, debug APK assembly and checksum verification: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616401
+- ESP32 portable tests **34/34 PASS** and CYD firmware compilation: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616371
+- Cross-platform parity: **PASS** — https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616151
+- APK SHA-256: `79c79984a265a1bf97406b3fbbcfd10993b481c1b1272871afbc4e1d981e1ec9`.
+- APK artifact: https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616401/artifacts/13160245573
+- ESP32 firmware artifact: https://github.com/ggrant111/glowdeck-sports/actions/runs/41480616371/artifacts/13159927195
+
+The ESP32 now also keeps the final-goal window when only goal effects are enabled, matching Fire TV. Native regression coverage includes this configuration. All seven effect patterns, team filters, toggles, previews, delay and journaled restoration are implemented on both physical platforms. Browser preview remains a mock and the separate hosted deployment is unchanged.
+
+These are successful software builds, not hardware acceptance. Verify WLED mapping/restoration, CYD speaker/touch/heap behavior and Fire TV playback performance before considering the feature production-ready. The branch has not been merged into main.
