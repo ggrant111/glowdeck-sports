@@ -379,8 +379,11 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 - [x] iPhone-side WAV decoding/reformatting into exact mono 16 kHz 16-bit PCM, max 10 seconds, then bounded validated upload to app-owned `TEAM.wav`.
 - [x] Block remote sound changes during active NHL goal monitoring; never send WLED commands from web manager.
 - [x] Android JVM protocol tests for PIN, valid hosts/team codes, bounded files and RIFF/PCM WAV format.
-- [ ] Verify v0.4.1 Android APK and parity CI on main and publish prerelease.
+- [x] [Fire TV v0.4.1 Android build/tests](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) passed on main and [APK prerelease](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.1-test/GlowDeck-GameDay-FireTV-v0.4.1.apk) published.
+- [x] [Cross-platform parity](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) and [ESP32 firmware regression](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) both passed on main.
 - [ ] Real Fire TV + iPhone home Wi-Fi acceptance: pair, upload, preview, persist, server teardown, and actual custom NHL goal during YouTube TV.
 - [ ] Extend ESP32 local web audio management to authenticated upload onto microSD after validating shared SPI touch/SD behavior on physical board. Explicit device-specific parity gap, not a blocker to Fire TV v0.4.1 release.
 
 **Security:** HTTP-only over trusted LAN; no public internet, no port-forwarding. Fresh PIN and private IPv4 restrictions reduce unauthorized LAN access, but do not provide encrypted transport.
+
+**v0.4.1 field status (2026-11-01):** Code and APK release complete. Actual Safari-to-Fire TV pairing/upload, imported sound persistence and real TV-speaker preview are pending user hardware acceptance. No unsupported claim of ESP32 LAN upload parity.

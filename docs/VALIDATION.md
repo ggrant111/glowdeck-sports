@@ -105,3 +105,11 @@
 - JVM tests added: 32-team whitelist, invalid path/name rejection, pairing code matching, private-LAN Host checks, Content-Length limits and canonical WAV header acceptance.
 - v0.4.1 CI check and real Fire TV/iPhone validation remain open; no claim that an actual iPhone connected or uploaded a WAV.
 - Audio and NHL/WLED events remain separate. Browser playback test never sends a lighting command. Untrusted/public Wi-Fi and port-forwarding are explicitly unsupported.
+
+## Fire TV v0.4.1 official `main` software verification (2026-11-01)
+
+- PASS: [Fire TV Android JVM tests, APK compile/sign/asset release 41386294301](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301). [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.1-test/GlowDeck-GameDay-FireTV-v0.4.1.apk). Unit tests cover team whitelist, PIN validation, private Host checks, bounded Content-Length and canonical WAV files.
+- PASS: [Cross-platform parity 41386294313](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) checks Fire TV LAN pairing/size/preview and existing ESP32/browser sound paths.
+- PASS: [ESP32 firmware regression 41386294269](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) — native tests and CYD compile, with no firmware behavior change.
+- PASS: Mobile web page JavaScript syntax checked, controls present. Not a browser-on-iPhone test.
+- NOT RUN: actual iPhone-to-Fire TV TCP/HTTP connection, PIN rejection/success, WAV upload/preview, physical audio and game-active rejection, long-term availability. These remain open in [LAN_SOUND_MANAGER_V041.md](LAN_SOUND_MANAGER_V041.md).

@@ -1,6 +1,6 @@
 # GlowDeck GameDay Fire TV v0.4.1 — LAN Sound Manager
 
-**Status:** Source implemented, CI verification pending; **not physically tested on a Fire TV or iPhone yet**. This is an on-device web server, **not** a public/cloud website. Fire TV remains the device that stores WAVs and plays horns.
+**Status:** v0.4.1 APK compiled and released on `main`, automated tests passed; **not physically tested with iPhone-to-Fire-TV uploads yet**. This is an on-device web server, **not** a public/cloud website. Fire TV remains the device that stores WAVs and plays horns.
 
 ## What it does
 
@@ -37,7 +37,8 @@ If the normal Fire TV file picker does not work, this local page replaces the ne
 
 - [x] Java source and phone UI authored: on-device web service, pairing, per-team status/assignment, bounded upload, preview, mute and volume.
 - [x] JVM tests cover team whitelist, pairing-code checks, request length, RFC1918 host checking and canonical WAV acceptance.
-- [ ] v0.4.1 GitHub Actions test and APK build pass on `main`.
+- [x] [Fire TV v0.4.1 build and unit tests](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) and [release APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.1-test/GlowDeck-GameDay-FireTV-v0.4.1.apk) published successfully on `main`.
+- [x] [Cross-platform parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) and [ESP32 firmware regression CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) passed. ESP32 v0.4 audio firmware unchanged by this Fire TV-only update.
 - [ ] Physical Fire TV/iPhone: Safari opens the LAN URL on home Wi-Fi, pairing works and incorrect code is rejected.
 - [ ] Upload a custom Anaheim WAV, preview on the TV and confirm it is still selected after reopening GlowDeck.
 - [ ] Stop the manager by leaving SOUND; verify `http://FIRE_TV_IP:8788/` no longer responds.
@@ -49,3 +50,11 @@ If the normal Fire TV file picker does not work, this local page replaces the ne
 This release adds the same **sound library and team assignments** to the Fire TV's LAN manager interface; browser simulator already supports local-file audio preview and team choices. The ESP32 currently exposes SOUND settings on its touchscreen/local webpage and plays WAVs copied onto microSD, but **does not yet offer authenticated browser-to-SD WAV uploads**. Adding that requires a secure PIN display, safe SD/touch SPI arbitration and on-device hardware testing. It is an explicit pending parity item, not a hidden claim of equal features.
 
 See [FEATURE_PARITY.md](FEATURE_PARITY.md) and [AUDIO_V04.md](AUDIO_V04.md).
+
+## Release verification
+
+- [Download Fire TV v0.4.1 APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.1-test/GlowDeck-GameDay-FireTV-v0.4.1.apk) — packaged, debug signed and uploaded via GitHub Actions.
+- [Fire TV Android tests/build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) — PASS.
+- [Shared audio and sound-manager parity](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) — PASS.
+- [ESP32 native tests/firmware regression build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) — PASS, no new ESP32 upload capability claimed.
+- Browser sound-manager JavaScript passed a syntax check; actual mobile Safari interaction has not been tested here.

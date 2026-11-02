@@ -77,3 +77,7 @@ Do not mark these as complete until code, CI and hardware evidence exist.
 - [Shared v0.4 audio parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448) passed, including team choice, built-in/custom source and mute defaults.
 - [Hosted sound simulator](https://glowdeck-gameday-simulator.lovable.app) published. Build provider reported 43 automated tests, but real Safari audio and physical lights remain unverified.
 - v0.4 ESP32 flash usage 91.9% of partition, so budget future additions carefully. Speaker circuit and shared VSPI microSD/touch bus require physical validation.
+
+## Fire TV v0.4.1 sound manager integration
+
+The v0.4.1 Android update adds an iPhone-friendly [Fire TV-hosted LAN sound manager](LAN_SOUND_MANAGER_V041.md): PIN-paired TCP port 8788, local browser WAV conversion/upload, all-32-NHL-team assignments, independent sound volume/mute and actual TV speaker preview. It retains the existing v0.4 goal sound/WLED code. [Android build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) and [parity validation](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) passed; LAN physical behavior is untested. ESP32 continues to support locally configured sound presets and SD WAV playback but no authenticated direct WAV upload yet.

@@ -133,6 +133,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Testing:** New JVM validation tests added. CI release to main and real LAN/device test still pending at this stage.
 - **Cross-device parity:** Existing ESP32 web sound settings remain, but secure browser-to-SD transfer is explicitly deferred until touch/SD hardware testing. See [LAN Sound Manager spec](LAN_SOUND_MANAGER_V041.md).
 
+### 2026-11-01 — Fire TV v0.4.1 sound manager APK published
+
+- **Verified:** [Fire TV v0.4.1 APK and JVM tests](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) passed on main; [parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) passed; [ESP32 native tests/CYD build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) passed unchanged.
+- **Published:** [Sideloadable Fire TV v0.4.1 APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.1-test/GlowDeck-GameDay-FireTV-v0.4.1.apk), local iPhone manager served only while SOUND screen visible at `http://FIRE_TV_IP:8788/` and protected by displayed PIN.
+- **Next:** Test actual iPhone Safari pairing and WAV import, verify preview plays through TV speaker and survives app restart. Custom NHL goal while YouTube TV runs is separate field acceptance.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

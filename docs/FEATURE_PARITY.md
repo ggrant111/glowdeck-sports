@@ -91,3 +91,11 @@ See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must sh
 - [ ] **Fire TV hardware acceptance:** test iPhone access, pairing, real WAV upload and playback, then confirm custom horn while YouTube TV is streaming and WLED restores.
 
 Platform-specific network hosting may differ; gameplay and goal/WLED behavior remain shared. **Do not silently equate browser mock or Fire TV LAN upload with proven ESP32 hardware upload.** See [LAN_SOUND_MANAGER_V041.md](LAN_SOUND_MANAGER_V041.md).
+
+### v0.4.1 verification (2026-11-01)
+
+- [x] [Fire TV unit tests + signed debug APK](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294301) passed on main.
+- [x] [Cross-platform source-level audio parity checks](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294313) passed on main.
+- [x] [Unmodified ESP32 firmware regression tests/build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41386294269) passed.
+- [ ] Actual Fire TV LAN upload + Safari pairing and TV preview verification remains open.
+- [ ] Secure ESP32 browser-to-microSD upload is an explicit follow-up, not part of this Fire TV v0.4.1 release.
