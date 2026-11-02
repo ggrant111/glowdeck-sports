@@ -57,3 +57,10 @@
 - PASS, log evidence, 2026-11-01: OTT vs ANA, favorite ANA, 0s delay. ARMED 19:06:28; GOAL WAIT 19:06:53.210; GOAL LIGHTS 19:06:53.897; restored and ARMED 19:07:02.100 (about 8.2s). Physical appearance and exact scene restoration still require visual confirmation.
 
 - PASS, user-observed physical lighting (2026-11-01): During OTT @ ANA, the WLED controller changed to Anaheim orange for a real goal and then visibly returned to the prior appearance. User also observed another live Anaheim goal trigger WLED while YouTube TV was playing on the Fire TV. Two real goal-triggered reactions reported; complete background path validated for this device. Still pending: exact WLED JSON state comparison, interruption/recovery tests and extended multi-game reliability.
+
+## Fire TV v0.3 — celebration modes (2026-11-01)
+
+- PASS: [GitHub Actions run 41377858153](https://github.com/ggrant111/glowdeck-sports/actions/runs/41377858153) completed Android JVM tests, APK compile, checksum, upload and prerelease publishing.
+- PASS (code/test): mode logic validates AWAY-only, HOME-only, BOTH, unknown owner, invalid stored mode, duplicate suppression, cooldown/busy policy, and ambiguous multi-goal suppression.
+- Feature unverified on the user's physical Fire TV until sideloading the v0.3 APK and testing both-team goals.
+- APK: [GlowDeck-GameDay-FireTV-v0.3.apk](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk).
