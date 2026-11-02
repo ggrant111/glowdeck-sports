@@ -1,8 +1,8 @@
-# GlowDeck GameDay Fire TV v0.4 — background monitoring test
+# GlowDeck GameDay Fire TV v0.4.1 — background goal monitoring + local sound management
 
 **A native, remote-controlled Amazon Fire TV / Android TV NHL + WLED test application.** This release introduces an opt-in Android **foreground service** that continues NHL play-by-play polling and controlling local WLED lights while the Fire TV displays YouTube TV, ESPN, Prime Video, or another app. No desktop server and no ESP32 are needed once the APK is installed.
 
-**[Download the Fire TV v0.4 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk)** · [Release page](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.4.0-test) · [Project roadmap](../PROJECT_PLAN.md)
+**[Download Fire TV v0.4.1 test APK](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.4.1-test)** · [Release page](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.4.0-test) · [Project roadmap](../PROJECT_PLAN.md)
 
 ## Install by ADB
 
@@ -71,3 +71,9 @@ For original test WAVs, run `python tools/make_test_wavs.py output` from the rep
 - **BOTH:** celebrate either team's newly detected goals using the scoring team's respective color.
 - Mode is saved per NHL game ID, not changed while monitoring is active. Stop the monitor to switch mode.
 - A 20-second cooldown, single pending scene, unique play event IDs, recovery journal, and eight-second restoration apply in all modes. Rapid goals during a busy scene or cooldown may be intentionally skipped. Always arm explicitly.
+
+## v0.4.1 iPhone LAN Sound Manager
+
+**[Full walkthrough and security notes](../docs/LAN_SOUND_MANAGER_V041.md).** Open the SOUND tab on Fire TV and keep it visible. It displays `http://FIRE_TV_IP:8788/` and a random eight-digit code. Open that URL in Safari on the same Wi-Fi, enter the code, then upload supported WAVs, assign sounds for all 32 teams, manage volume/mute and play previews through the television. Safari automatically converts decodable WAVs to mono 16 kHz, 16-bit PCM, up to 10 seconds. WAVs never leave the home network. Local server shuts down on leaving the SOUND screen; NHL monitoring continues separately.
+
+**Build status:** New feature on `firetv-v0.4.1-lan-audio` branch; physical iPhone/Fire TV test still required. This replaces neither the APK's existing Fire TV file picker nor the ESP32 microSD workflow.

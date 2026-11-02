@@ -126,6 +126,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Still unknown:** Built-in versus custom audio clip, exact eight-second timing, uninterrupted streaming playback, custom WAV import, and physical ESP32 audio behavior.
 - **Next:** Test custom WAV, exact restore timing, multiple-team sounds, video/audio focus and long-running reliability.
 
+### 2026-11-01 — Fire TV v0.4.1 local iPhone sound manager
+
+- **Implemented on feature branch:** Local TCP 8788 HTTP service with 8-digit TV pairing code, private-LAN/Host/Origin checks, bounded WAV uploads, 32-team assignments, remote volume/mute and physical TV speaker preview. Sound tab displays Safari URL and code; server stops when app leaves SOUND.
+- **Browser UI:** Mobile-friendly webpage provides iPhone file upload and local WAV conversion to 16kHz mono PCM, team assignment, sound preview and save controls. File never goes to a cloud server.
+- **Testing:** New JVM validation tests added. CI release to main and real LAN/device test still pending at this stage.
+- **Cross-device parity:** Existing ESP32 web sound settings remain, but secure browser-to-SD transfer is explicitly deferred until touch/SD hardware testing. See [LAN Sound Manager spec](LAN_SOUND_MANAGER_V041.md).
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

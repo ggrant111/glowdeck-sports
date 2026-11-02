@@ -368,3 +368,19 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 - [ ] Check streaming playback remains uninterrupted, measure exact eight-second restoration and compare full WLED state.
 - [ ] Test imported custom WAV, separate team assignments, and an opposing-team goal.
 - [ ] Validate ESP32 speaker/audio on CYD when hardware is available. Fire TV success does not prove ESP32 physical parity.
+
+## 15. Fire TV v0.4.1 — private LAN Sound Manager (2026-11-01)
+
+**Goal:** Manage the complete NHL custom sound library on an iPhone without ADB or a Fire TV file picker. Detailed architecture, use and constraints: [docs/LAN_SOUND_MANAGER_V041.md](docs/LAN_SOUND_MANAGER_V041.md).
+
+- [x] On-device short-lived HTTP sound manager bound to port 8788, active only while Fire TV SOUND tab is visible.
+- [x] Fresh eight-digit PIN displayed on Fire TV; restrict admin/status/preview/upload APIs to paired RFC1918 LAN clients and same-origin browser access.
+- [x] Mobile management UI for all 32 NHL teams: built-in/custom selections, upload, volume/mute, and physical TV speaker preview.
+- [x] iPhone-side WAV decoding/reformatting into exact mono 16 kHz 16-bit PCM, max 10 seconds, then bounded validated upload to app-owned `TEAM.wav`.
+- [x] Block remote sound changes during active NHL goal monitoring; never send WLED commands from web manager.
+- [x] Android JVM protocol tests for PIN, valid hosts/team codes, bounded files and RIFF/PCM WAV format.
+- [ ] Verify v0.4.1 Android APK and parity CI on main and publish prerelease.
+- [ ] Real Fire TV + iPhone home Wi-Fi acceptance: pair, upload, preview, persist, server teardown, and actual custom NHL goal during YouTube TV.
+- [ ] Extend ESP32 local web audio management to authenticated upload onto microSD after validating shared SPI touch/SD behavior on physical board. Explicit device-specific parity gap, not a blocker to Fire TV v0.4.1 release.
+
+**Security:** HTTP-only over trusted LAN; no public internet, no port-forwarding. Fresh PIN and private IPv4 restrictions reduce unauthorized LAN access, but do not provide encrypted transport.

@@ -98,3 +98,10 @@
 - **USER FIELD PASS (follow-up):** The goal sound played while the user was watching **YouTube TV**, and WLED visibly returned to its previous scene afterward. This confirms real background audio playback alongside streaming video and visible WLED restoration.
 - **Still to verify:** Exact elapsed eight-second restoration and WLED JSON equivalence, video/audio ducking or playback interruptions, custom WAV import, multiple-game endurance, and network recovery.
 - **ESP32 remains untested on physical hardware**: this result validates the Fire TV path, not the CYD speaker or microSD/audio pipeline.
+
+## Fire TV v0.4.1 LAN sound manager — initial software checks (2026-11-01)
+
+- SOURCE IMPLEMENTED: mobile-first LAN page served by Fire TV over `http://FIRE_TV_PRIVATE_IP:8788/`, eight-digit pairing code displayed on SOUND tab; uploads are WAV-only, max 320044 bytes, validated to canonical PCM mono 16000Hz/16-bit.
+- JVM tests added: 32-team whitelist, invalid path/name rejection, pairing code matching, private-LAN Host checks, Content-Length limits and canonical WAV header acceptance.
+- v0.4.1 CI check and real Fire TV/iPhone validation remain open; no claim that an actual iPhone connected or uploaded a WAV.
+- Audio and NHL/WLED events remain separate. Browser playback test never sends a lighting command. Untrusted/public Wi-Fi and port-forwarding are explicitly unsupported.

@@ -81,3 +81,13 @@ See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must sh
 - [x] [Fire TV CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412450): JVM unit tests, debug APK release.
 - [x] [Audio parity CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41383412448): static cross-platform checks passed.
 - [ ] Real CYD speaker/amplifier + microSD playback, Fire TV audio mixing in YouTube TV, actual iPhone Safari playback remain to be tested.
+
+## Fire TV v0.4.1 browser sound manager (device-specific delivery)
+
+- [x] Fire TV: local-only paired management server on TCP 8788, authenticated sound settings, all 32 NHL teams, WAV upload and TV speaker preview, source and JVM validations implemented.
+- [x] Browser simulator: existing team sounds and user-chosen local WAV preview already available; no cloud upload to an actual controller is claimed.
+- [x] ESP32: existing touch and local web sound settings, microSD custom WAV playback and per-team selections remain unchanged.
+- [ ] **Parity gap:** secure browser-to-microSD upload directly onto ESP32 is not implemented. Requires a safe SD/touch bus arbitration strategy, physical CYD acceptance and pairing credentials shown on board. Track as v0.4.2/next hardware milestone.
+- [ ] **Fire TV hardware acceptance:** test iPhone access, pairing, real WAV upload and playback, then confirm custom horn while YouTube TV is streaming and WLED restores.
+
+Platform-specific network hosting may differ; gameplay and goal/WLED behavior remain shared. **Do not silently equate browser mock or Fire TV LAN upload with proven ESP32 hardware upload.** See [LAN_SOUND_MANAGER_V041.md](LAN_SOUND_MANAGER_V041.md).

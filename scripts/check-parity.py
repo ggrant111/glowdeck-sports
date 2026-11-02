@@ -103,7 +103,26 @@ def main():
     require('function playSound(team,preview=false)' in web and
             "s.sound[team]" in web and "customBuffers" in web,
             "Browser demo includes per-team built-in/custom sound preview")
-    print("ALL CHECKS PASSED: cross-platform parity contract v0.4")
+    lan_server = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/LanSoundServer.java")
+    lan_proto = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/LanSoundProtocol.java")
+    lan_html = read("firetv/app/src/main/assets/sound_manager.html")
+    require('LanSoundProtocol.pinMatches' in lan_server and
+            'isPrivateLanIpv4' in lan_server and
+            'origin!=null' in lan_server and
+            'MAX_UPLOAD=320044' in lan_proto,
+            "Fire TV LAN upload requires pairing, private IPv4 and size limits")
+    require('GameDayService.isRunning()' in lan_server and
+            'audio.play(team,true)' in lan_server and
+            'LanSoundProtocol.canonicalUpload' in lan_server,
+            "Fire TV LAN upload/preview cannot interfere with active goal monitoring")
+    require('readyWav(file)' in lan_html and
+            'Play on Fire TV' in lan_html and
+            'NHL team' in lan_html,
+            "Hosted-on-Fire-TV iPhone page imports and assigns team WAVs")
+    require('web.on("/sound"' in read("src/main.cpp") and
+            'CustomWav' in read("src/AudioPlayer.cpp"),
+            "ESP32 keeps existing local sound settings and microSD custom playback")
+    print("ALL CHECKS PASSED: cross-platform parity contract v0.4.1")
 
 
 if __name__ == "__main__":
