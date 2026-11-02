@@ -149,10 +149,12 @@ public final class MainActivity extends Activity {
         Button connect=action("SAVE IP + CONNECT",true,()->connectWled());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(57));cp.setMargins(dp(12),0,0,0);iprow.addView(connect,cp);
         body.addView(txt("Device: "+wledName+"  •  "+(wledConnected?"Connected":"Disconnected"),17,wledConnected?BLUE:MUTED,true));
         if(hasJournal()){card("RECOVERY REQUIRED","A previous preview hasn't been restored. New previews are blocked until restoration succeeds.");}
-        LinearLayout opts=row();Button btnAway=action("PREVIEW AWAY COLOR  (8s)",false,()->preview(false));Button btnHome=action("PREVIEW HOME COLOR  (8s)",false,()->preview(true));
+        LinearLayout opts=row();
+        Button btnAway=action(selected==null?"TEST UTA BLUE  (8s)":"PREVIEW AWAY COLOR  (8s)",false,()->preview(false));
+        Button btnHome=action(selected==null?"TEST BOS GOLD  (8s)":"PREVIEW HOME COLOR  (8s)",false,()->preview(true));
         buttons(opts,btnAway,btnHome);body.addView(opts);
         LinearLayout opts2=row();buttons(opts2,action("RESTORE PREVIOUS SCENE",true,()->restoreWled()),action("READ WLED STATE",false,()->readWled()));body.addView(opts2);
-        if(selected==null)card("Select game first","Choose a matchup in NHL SCORES. Team-color previews use that game's home/away colors.");
+        if(selected==null)card("Standalone light test","No NHL game selected: UTA blue and BOS gold are available to verify WLED anytime.");
         else subtitle("Selected "+selected.away+" vs "+selected.home+" • segment 0 • brightness capped at 160 • previous state restored after 8s.");
         subtitle("Only RFC1918 private IPv4 addresses are accepted. No discovery or cloud relay. Never forward your WLED port to the internet.");
     }
@@ -195,8 +197,8 @@ public final class MainActivity extends Activity {
     private void readWled(){String ip=wledIp;job("WLED state",()->WledApi.state(ip),state->{log("WLED state: on="+state.optBoolean("on")+", brightness="+state.optInt("bri")+", segments="+(state.optJSONArray("seg")==null?0:state.optJSONArray("seg").length()));render();});}
     private boolean hasJournal(){return prefs!=null&&prefs.contains("restoreJson");}
     private void preview(boolean home){
-        if(selected==null){log("Select NHL game first");render();return;}
-        String team=home?selected.home:selected.away;startPreview(team,NhlApi.teamColor(team));
+        String team=selected==null?(home?"BOS":"UTA"):(home?selected.home:selected.away);
+        startPreview(team,NhlApi.teamColor(team));
     }
     private void startPreview(String team,int rgb){
         if(hasJournal()||previewActive||restoreBusy){log("Preview blocked until prior state restored");render();return;}
