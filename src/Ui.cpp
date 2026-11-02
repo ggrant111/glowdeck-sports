@@ -84,20 +84,25 @@ void Ui::gameday(const UiState &state) {
              String(game->homeScore) + "  " + game->home, 160, 42, 4);
     tft_.setTextColor(MUTED, BG);
     tft_.drawCentreString(String(gd::gameStateText(*game)), 160, 73, 2);
-    tft_.drawString("MY TEAM", 10, 99, 2);
-    button(112, 90, 94, 31, game->away, state.favoriteHome ? CARD : TEAL);
-    button(213, 90, 95, 31, game->home, state.favoriteHome ? TEAL : CARD);
+    tft_.drawString("CELEBRATE", 10, 87, 2);
+    button(8, 105, 96, 29, game->away,
+        state.celebrationMode == gd::CelebrationMode::Away ? TEAL : CARD);
+    button(111, 105, 96, 29, game->home,
+        state.celebrationMode == gd::CelebrationMode::Home ? TEAL : CARD);
+    button(214, 105, 98, 29, "BOTH",
+        state.celebrationMode == gd::CelebrationMode::Both ? TEAL : CARD);
     tft_.setTextColor(FG, BG);
-    tft_.drawString("TV DELAY", 9, 139, 2);
-    button(115, 130, 38, 31, "-", CARD);
-    tft_.drawCentreString(String(state.goalDelay) + "s", 181, 139, 2);
-    button(238, 130, 39, 31, "+", CARD);
+    tft_.drawString("TV DELAY", 9, 143, 2);
+    button(115, 138, 38, 27, "-", CARD);
+    tft_.drawCentreString(String(state.goalDelay) + "s", 181, 143, 2);
+    button(238, 138, 39, 27, "+", CARD);
     button(12, 166, 296, 33, state.restorePending ? "RESTORING LIGHTS" :
         (state.goalActive ? "GOAL LIGHTS ACTIVE" : (state.goalArmed ? "DISARM GOALS" : "ARM GOAL LIGHTS")),
         state.goalArmed ? TEAL : CARD);
-    if (state.goalQueued) {
+    if (state.goalQueued || (state.goalArmed && state.goalPaused)) {
         tft_.setTextColor(GOLD, BG);
-        tft_.drawCentreString("Goal waiting for TV delay", 160, 199, 1);
+        tft_.drawCentreString(state.goalQueued ? "Goal waiting for TV delay" :
+             "Waiting for NHL PBP baseline", 160, 199, 1);
     }
 }
 void Ui::lights(const UiState &state) {
@@ -172,11 +177,12 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             if (row < 4 && idx < state.scoreboard->count) return {ActionType::SelectGame, idx};
         }
     } else if (page_ == Page::GameDay) {
-        if (y >= 90 && y < 124) {
-            if (x >= 112 && x < 210) return {ActionType::FavoriteAway};
-            if (x >= 210) return {ActionType::FavoriteHome};
+        if (y >= 105 && y < 137) {
+            if (x < 107) return {ActionType::CelebrateAway};
+            if (x < 211) return {ActionType::CelebrateHome};
+            return {ActionType::CelebrateBoth};
         }
-        if (y >= 129 && y < 163) {
+        if (y >= 138 && y < 166) {
             if (x >= 112 && x < 157) return {ActionType::DelayMinus};
             if (x >= 235 && x < 280) return {ActionType::DelayPlus};
         }

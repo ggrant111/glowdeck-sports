@@ -14,7 +14,9 @@ struct UiState {
     bool goalArmed = false;
     bool goalActive = false;
     bool goalQueued = false;
-    bool favoriteHome = true;
+    gd::CelebrationMode celebrationMode = gd::CelebrationMode::Away;
+    bool goalPaused = false;
+    bool goalBaselineReady = false;
     uint8_t goalDelay = 0;
     bool restorePending = false;
     String ip;
@@ -26,7 +28,7 @@ enum class Page : uint8_t { Scores, GameDay, Lights, Setup };
 enum class ActionType : uint8_t {
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
-    FavoriteAway, FavoriteHome, DelayMinus, DelayPlus
+    CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus
 };
 struct UiAction {
     ActionType type;
