@@ -122,8 +122,9 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 ### 2026-11-01 — First confirmed real NHL sound + light celebration
 
 - **Field success (user reported):** During an actual Anaheim goal, Fire TV v0.4 simultaneously produced the assigned audio and WLED celebration. This confirms the integrated path beyond build-only tests.
-- **Not inferred:** Specific sound asset (built-in vs custom), current streaming app/audio focus, whether the original WLED scene restored after eight seconds, and physical ESP32 behavior. All remain separate acceptance checks.
-- **Next:** Confirm audio coexists with YouTube TV, WLED restores reliably after eight seconds, test custom WAV, and later validate ESP32 hardware.
+- **User confirmation:** Anaheim goal sound played while **YouTube TV was on screen**, and WLED visibly restored the preceding lighting appearance. Marked the Fire TV v0.4 background audio and visual restore field checks passed.
+- **Still unknown:** Built-in versus custom audio clip, exact eight-second timing, uninterrupted streaming playback, custom WAV import, and physical ESP32 audio behavior.
+- **Next:** Test custom WAV, exact restore timing, multiple-team sounds, video/audio focus and long-running reliability.
 
 ## Entry template (copy for every new work session)
 

@@ -363,6 +363,8 @@ The user selected **both** built-in/generated sound presets and user-imported cu
 ### Fire TV v0.4 first live goal + audio validation (2026-11-01)
 
 - [x] **First user-observed live NHL Anaheim goal** triggered both WLED lighting and sound on the Fire TV v0.4 implementation.
-- [ ] Verify audio playback during YouTube TV / another foreground streaming app and confirm video playback isn't disturbed.
-- [ ] Verify exact eight-second scene restoration and test custom imported WAV, separate team assignments, and a goal for the opposing side.
+- [x] **Fire TV v0.4 background audio:** User heard Anaheim goal sound while watching YouTube TV.
+- [x] **Visual WLED restore:** User confirmed lights returned to their previous appearance following that goal celebration.
+- [ ] Check streaming playback remains uninterrupted, measure exact eight-second restoration and compare full WLED state.
+- [ ] Test imported custom WAV, separate team assignments, and an opposing-team goal.
 - [ ] Validate ESP32 speaker/audio on CYD when hardware is available. Fire TV success does not prove ESP32 physical parity.

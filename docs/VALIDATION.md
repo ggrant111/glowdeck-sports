@@ -95,5 +95,6 @@
 
 - **PASS — firsthand user report:** An Anaheim Ducks goal during an actual NHL game triggered **both audible goal sound and WLED goal lighting** under GameDay v0.4. This is the first user-confirmed combined live goal/audio/light result for the Fire TV build.
 - **Evidence level:** User-observed result, not an independently captured video, Android logcat, or timestamped NHL event trace. Do not infer exact detection delay or team preset, or claim that both teams/custom WAV were tested.
-- **Still to verify:** Whether playback continued while another streaming app (e.g. YouTube TV) had video/audio focus; precise lighting restoration after eight seconds; custom WAV import/playback; extended background reliability.
+- **USER FIELD PASS (follow-up):** The goal sound played while the user was watching **YouTube TV**, and WLED visibly returned to its previous scene afterward. This confirms real background audio playback alongside streaming video and visible WLED restoration.
+- **Still to verify:** Exact elapsed eight-second restoration and WLED JSON equivalence, video/audio ducking or playback interruptions, custom WAV import, multiple-game endurance, and network recovery.
 - **ESP32 remains untested on physical hardware**: this result validates the Fire TV path, not the CYD speaker or microSD/audio pipeline.
