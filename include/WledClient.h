@@ -13,6 +13,7 @@ class WledClient {
 public:
     void begin();
     void discover();
+    bool scanOverflow=false;
     bool add(const String &host, String &error);
     bool remove(const String &ip);
     bool applyColor(size_t index, uint32_t rgb, String &error);

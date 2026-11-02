@@ -84,6 +84,10 @@ bool trySound(const gd::AudioChoice &choice) {
 
 WebServer web(80);
 gd::Scoreboard scores;
+gd::Game trackedGame;
+uint8_t scheduleDay=0;
+bool resumeEnabled=false,resumePending=false;
+String resumeIp;
 uint32_t lastNhl = 0, lastPbp = 0;
 bool pbpEverPolled = false;
 uint32_t lastUi = 0;
@@ -92,17 +96,21 @@ bool servicesStarted = false;
 uint32_t lastTap = 0;
 uint32_t bannerSet = 0;
 
-const gd::Game* selectedGame() { return gd::findGame(scores, uiState.selectedGameId); }
+const gd::Game* selectedGame() { return trackedGame.id==uiState.selectedGameId && trackedGame.id ? &trackedGame : nullptr; }
+void saveResume();
 void banner(const String &s) {
     uiState.message = s;
     bannerSet = millis();
     Serial.println(String("GameDay: ") + s);
 }
 void redraw() {
+    uiState.tracked=selectedGame();uiState.scheduleDay=scheduleDay;uiState.resumeEnabled=resumeEnabled;
     uiState.ddp=wled.ddpEnabled;uiState.effectSelection=effectSelection;uiState.effectMask=effectMask;
     uiState.wifiConnected = WiFi.status() == WL_CONNECTED;
     uiState.ip = WiFi.localIP().toString();
     uiState.goalArmed = goals.armed();
+    uiState.waiting = goals.armed() && goals.waiting();
+    uiState.ledPage = min(uiState.ledPage,max(0,(int(wled.size())-1)/3));
     uiState.goalDelay = goals.delay();
     uiState.celebrationMode = goals.mode();
     uiState.goalPaused = goals.paused();
@@ -139,12 +147,23 @@ void loadGameSettings() {
     if(soundVolume>100)soundVolume=50;
     soundPrefs.end();
     soundEnabled=false; // deliberate user opt-in on each boot
-    // Never persist armed=true. Require a live feed and deliberate arm each boot.
+    Preferences resume;
+    if(resume.begin("gd-resume",false)) {
+        resumeEnabled=resume.getBool("enabled",false);
+        resumePending=resumeEnabled&&resume.getBool("armed",false);
+        if(resumePending && resume.getBytesLength("game")==sizeof(trackedGame)) {
+            resume.getBytes("game",&trackedGame,sizeof(trackedGame));
+            uiState.selectedGameId=trackedGame.id;goals.selectGame(trackedGame.id);
+            goals.setMode(gd::validatedMode(resume.getUChar("mode",0)));resumeIp=resume.getString("ip","");
+        } else resumePending=false;
+        String zone=resume.getString("tz","UTC0");setenv("TZ",zone.c_str(),1);tzset();
+        resume.end();
+    }
 }
 // Manual actions restore the automatic scene FIRST, rather than silently
 // destroying the saved original state. No manual mutation if restore fails.
 bool clearAutoBeforeManual() {
-    goals.disarm();effectPreview=false;
+    goals.disarm();effectPreview=false;resumePending=false;saveResume();
     if (!wled.autoRestorePending()) return true;
     String err;
     if (wled.restoreAuto(err)) return true;
@@ -202,6 +221,9 @@ void previewSound(bool home) {
 void selectGame(uint32_t id) {
     if (goals.armed()) { banner("Disarm before changing game"); return; }
     if (!clearAutoBeforeManual()) return;
+    const gd::Game *chosen=gd::findGame(scores,id);
+    if(!chosen)return;
+    trackedGame=*chosen;
     uiState.selectedGameId = id;
     goals.selectGame(id);
     Preferences p; p.begin("gd-game",true);
@@ -229,12 +251,23 @@ void setGoalDelay(int delta) {
     saveGameSettings();
     banner(String("TV delay ") + goals.delay() + " seconds");
 }
+void saveResume() {
+    Preferences p;if(!p.begin("gd-resume",false))return;
+    p.putBool("enabled",resumeEnabled);p.putBool("armed",goals.armed());
+    if(goals.armed()&&selectedGame()&&uiState.selectedLed>=0) {
+        p.putBytes("game",&trackedGame,sizeof(trackedGame));p.putString("ip",wled.at(uiState.selectedLed).ip);
+        p.putUChar("mode",uint8_t(goals.mode()));
+    }
+    p.end();
+}
 void toggleArm() {
     if(effectPreview){banner("Finish effect preview first");return;}
+    if (resumePending) {resumePending=false;saveResume();banner("Reboot resume cancelled");return;}
     if (goals.armed()) {
         goals.disarm();
         audio.stop();
         reactions.service(millis(), WiFi.status() == WL_CONNECTED);
+        saveResume();
         banner("GameDay disarmed");
         return;
     }
@@ -247,10 +280,11 @@ void toggleArm() {
     if (uiState.selectedLed < 0 || (size_t)uiState.selectedLed >= wled.size()) {
         banner("Select a WLED device"); return;
     }
-    if (!goals.arm(g, millis())) { banner("Choose a LIVE game first"); return; }
+    if (!goals.arm(g, millis())) { banner("Choose an upcoming or live game"); return; }
     reactions.setTeamColors(gd::teamColor(g->away), gd::teamColor(g->home));
+    saveResume();
     pbpEverPolled=false;
-    banner("Goal monitor: fetching play baseline");
+    banner(goals.waiting()?"ARMED - waiting for game start":"Goal monitor: fetching play baseline");
 }
 
 void effectAction(int action,bool home=false){
@@ -288,14 +322,19 @@ void redirectHome() { web.sendHeader("Location", "/", true); web.send(303, "text
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
 body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.4</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+    page += "<section><h2>Schedule: next 7 days</h2>";
+    for(int day=0;day<7;++day)page+="<form method='post' action='/schedule'><button name='day' value='"+String(day)+"'>"+(day==0?String("Today"):day==1?String("Tomorrow"):String("Day +")+day)+"</button></form>";
+    page+="<p>Schedule date: "+String(scores.date)+". Times use configured timezone (default UTC).</p><form method='post' action='/timezone'><select name='tz'><option value='UTC0'>UTC</option><option value='MST7MDT,M3.2.0,M11.1.0'>Mountain</option><option value='PST8PDT,M3.2.0,M11.1.0'>Pacific</option><option value='CST6CDT,M3.2.0,M11.1.0'>Central</option><option value='EST5EDT,M3.2.0,M11.1.0'>Eastern</option></select><button>Save timezone</button></form>";
+    page+="<form method='post' action='/resume'><button>Resume after reboot: "+String(resumeEnabled?"ON":"OFF")+"</button></form></section>";
     page += "<section><h2>Status</h2><p>Wi-Fi: " + htmlEscape(WiFi.SSID()) + "<br>NHL: ";
     page += uiState.nhlConnected ? "connected" : "unavailable";
-    page += "<br>Games today: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form></section>";
+    page += "<br>Games on selected date: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form></section>";
     page += "<section><h2>WLED devices</h2><p>Add a WLED device by numeric IPv4 address (must be on this LAN).</p>";
     page += "<form method='post' action='/add'><input name='ip' placeholder='192.168.1.71' required maxlength='15'><button>Add device</button></form>";
     page += "<form method='post' action='/scan'><button>Scan mDNS</button></form>";
     for (size_t i=0; i<wled.size(); ++i) {
         const LedDevice &d = wled.at(i);
+        page += "<form method='post' action='/selectled'><button name='index' value='"+String(i)+"'>Select</button></form>";
         page += "<p>" + htmlEscape(d.name) + " (" + htmlEscape(d.ip) + ") ";
         page += "<form method='post' action='/remove'><input type='hidden' name='ip' value='"+htmlEscape(d.ip)+"'><button>Remove</button></form></p>";
     }
@@ -306,8 +345,8 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='away'><button>Apply away team</button></form>";
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='home'><button>Apply home team</button></form>";
     } else page += "<p>No game selected.</p>";
-    page += "</section><section><h2>GameDay goal reactions</h2><p>Default OFF at every boot. NHL play-by-play goal event IDs; first response is baseline only.</p>";
-    page += "<p>Goal lights: <strong>" + String(goals.armed() ? "ARMED" : "OFF") + "</strong> | " +
+    page += "</section><section><h2>GameDay goal reactions</h2><p>Reboot resume is OFF unless enabled. Upcoming games wait without changing lights; first live connection skips historical events.</p>";
+    page += "<p>Goal lights: <strong>" + String(goals.armed() ? (goals.waiting()?"ARMED - WAITING FOR START":"MONITORING") : "OFF") + "</strong> | " +
       "Celebrate: " + String(gd::celebrationName(goals.mode())) +
       " | TV delay: " + String(goals.delay()) + "s</p>";
     page += "<p>Selected WLED: " + String(uiState.selectedLed >= 0 && (size_t)uiState.selectedLed < wled.size()
@@ -354,7 +393,7 @@ void refreshNhl() {
     if (WiFi.status() != WL_CONNECTED) { banner("No Wi-Fi for NHL"); return; }
     gd::Scoreboard incoming;
     String error;
-    bool ok = nhl.poll(incoming, error);
+    bool ok = nhl.poll(incoming, error,scheduleDay);
     lastNhl = millis();
     nhlEverPolled = true;
     uiState.nhlConnected = ok;
@@ -368,13 +407,17 @@ void refreshNhl() {
     bool hadPrevious = old != nullptr;
     if (old) previous = *old;
     scores = incoming;
+    const gd::Game *fresh=gd::findGame(scores,uiState.selectedGameId);
+    if(fresh)trackedGame=*fresh;
     const gd::Game *tracked = selectedGame();
     if (hadPrevious && tracked) {
         gd::GoalChange change = gd::detectGoalChange(previous, *tracked);
         if (change.changed) banner(String("SCORE! Away +") + change.awayAdded + " Home +" + change.homeAdded);
     }
+    bool wasArmed=goals.armed();
     goals.observeGame(tracked);
-    if (!tracked) { uiState.selectedGameId = 0; goals.selectGame(0); }
+    if(wasArmed&&!goals.armed()){saveResume();banner("Game ended or cancelled; monitoring stopped");}
+    // A selected game may be absent from this browsing day; keep tracking its ID.
     if (uiState.gamePage * 4 >= scores.count) uiState.gamePage = 0;
     Serial.printf("NHL: %u games for %s\n", scores.count, scores.date);
     redraw();
@@ -383,15 +426,17 @@ void refreshPlayByPlay() {
     if (!goals.armed() || WiFi.status()!=WL_CONNECTED) return;
     gd::GoalFeed sample; String error;
     const bool wasPaused=goals.paused();
-    const bool ok=nhl.pollGoals(goals.gameId(),sample,error);
+    const bool ok=nhl.pollGoals(goals.gameId(),sample,error,&trackedGame);
     lastPbp=millis(); pbpEverPolled=true;
     if (!ok) {
         goals.pause();
         banner(String("NHL PBP: ")+error);
         return;
     }
+    bool wasArmed=goals.armed();
     goals.observeFeed(sample,millis());
-    if (wasPaused && goals.baselined()) banner("NHL play baseline ready");
+    if(wasArmed&&!goals.armed()){saveResume();banner("Game ended or cancelled; monitoring stopped");}
+    if (wasPaused && goals.baselined()) banner(goals.waiting()?"ARMED - waiting for game start":"NHL play baseline ready");
     Serial.printf("PBP game=%lu latest=%lu goals=%u %s\n",
         (unsigned long)sample.gameId,(unsigned long)sample.latestEventId,
         sample.count,goals.paused()?"PAUSED":"ARMED");
@@ -410,6 +455,12 @@ void applyTeam(bool home) {
 }
 void doAction(const UiAction &a) {
     switch (a.type) {
+      case ActionType::ToggleResume:
+        resumeEnabled=!resumeEnabled;if(!resumeEnabled)resumePending=false;saveResume();banner(resumeEnabled?"Reboot resume enabled":"Reboot resume disabled");break;
+      case ActionType::ScheduleDay:
+        scheduleDay=(scheduleDay+1)%7;uiState.gamePage=0;refreshNhl();break;
+      case ActionType::PreviousLeds: uiState.ledPage=max(0,uiState.ledPage-1);break;
+      case ActionType::NextLeds: uiState.ledPage=min(max(0,(int(wled.size())-1)/3),uiState.ledPage+1);break;
       case ActionType::SelectGame:
         if (a.index >= 0 && a.index < scores.count) selectGame(scores.games[a.index].id);
         break;
@@ -420,7 +471,7 @@ void doAction(const UiAction &a) {
       case ActionType::NextGames: if ((uiState.gamePage+1)*4 < scores.count) ++uiState.gamePage; break;
       case ActionType::ScanLeds:
         wled.discover(); if (wled.size() && uiState.selectedLed < 0) uiState.selectedLed=0;
-        banner(String("Found ") + wled.size() + " WLED device(s)"); break;
+        banner(wled.scanOverflow?"8-device limit; remove unused device":String("Found ") + wled.size() + " WLED device(s)"); break;
       case ActionType::TeamAway: applyTeam(false); break;
       case ActionType::TeamHome: applyTeam(true); break;
       case ActionType::PowerOff: {
@@ -457,6 +508,16 @@ void doAction(const UiAction &a) {
 void setupWeb() {
     if (servicesStarted) return;
     web.on("/", HTTP_GET, webHome);
+    web.on("/schedule",HTTP_POST,[]{scheduleDay=constrain(web.arg("day").toInt(),0,6);uiState.gamePage=0;refreshNhl();redirectHome();});
+    web.on("/resume",HTTP_POST,[]{resumeEnabled=!resumeEnabled;if(!resumeEnabled)resumePending=false;saveResume();redirectHome();});
+    web.on("/timezone",HTTP_POST,[]{
+        String zone=web.arg("tz");
+        if(zone=="UTC0"||zone=="MST7MDT,M3.2.0,M11.1.0"||zone=="PST8PDT,M3.2.0,M11.1.0"||zone=="CST6CDT,M3.2.0,M11.1.0"||zone=="EST5EDT,M3.2.0,M11.1.0") {
+            Preferences p;if(p.begin("gd-resume",false)){p.putString("tz",zone);p.end();}setenv("TZ",zone.c_str(),1);tzset();
+            banner("Timezone saved; reopen scores");
+        }redirectHome();
+    });
+    web.on("/selectled",HTTP_POST,[]{int i=web.arg("index").toInt();if(i>=0&&i<int(wled.size())&&clearAutoBeforeManual()){uiState.selectedLed=i;uiState.ledPage=i/3;}redirectHome();});
     web.on("/effects",HTTP_POST,[]{
         String a=web.arg("action");
         if(a=="0"||a=="1"||a=="2"||a=="3")effectAction(a.toInt());
@@ -472,10 +533,16 @@ void setupWeb() {
         redirectHome();
     });
     web.on("/remove", HTTP_POST, [] {
-        if (wled.remove(web.arg("ip"))) { uiState.selectedLed = wled.size() ? 0 : -1; banner("Device removed"); }
+        if(clearAutoBeforeManual()) {
+            String selectedIp=uiState.selectedLed>=0&&size_t(uiState.selectedLed)<wled.size()?wled.at(uiState.selectedLed).ip:String("");
+            if(wled.remove(web.arg("ip"))) {
+                uiState.selectedLed=-1;for(size_t i=0;i<wled.size();++i)if(wled.at(i).ip==selectedIp)uiState.selectedLed=i;
+                uiState.ledPage=uiState.selectedLed>=0?uiState.selectedLed/3:0;banner("Device removed");
+            }
+        }
         redirectHome();
     });
-    web.on("/scan", HTTP_POST, [] { wled.discover(); if (wled.size() && uiState.selectedLed<0) uiState.selectedLed=0; banner("Discovery complete"); redirectHome(); });
+    web.on("/scan", HTTP_POST, [] { wled.discover(); if (wled.size() && uiState.selectedLed<0) uiState.selectedLed=0; banner(wled.scanOverflow?"8-device limit; remove unused device":"Discovery complete"); redirectHome(); });
     web.on("/refresh", HTTP_POST, [] { refreshNhl(); redirectHome(); });
     web.on("/apply", HTTP_POST, [] { applyTeam(web.arg("side")=="home"); redirectHome(); });
     web.on("/selectgame", HTTP_POST, [] {
@@ -611,11 +678,13 @@ void setup() {
     }
     wled.begin();
     if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
+    configTime(0,0,"pool.ntp.org","time.nist.gov");
     loadGameSettings();
     if (wled.size()) uiState.selectedLed = 0;
     redraw();
     initWiFi();
     if (WiFi.status() == WL_CONNECTED) refreshNhl();
+    if(resumePending)banner("Saved monitor: checking game and WLED");
     redraw();
 }
 void loop() {
@@ -632,11 +701,31 @@ void loop() {
     restoreTouchBus();
     pollTouch();
     const bool online = WiFi.status() == WL_CONNECTED;
+    if(resumePending && online) {
+        static uint32_t lastResume=0;
+        if(!lastResume || millis()-lastResume>30000) {
+            lastResume=millis(); gd::GoalFeed feed;String err;
+            if(nhl.pollGoals(trackedGame.id,feed,err,&trackedGame)) {
+                if(!strcmp(trackedGame.state,"OFF")||!strcmp(trackedGame.state,"FINAL")||!strcmp(trackedGame.state,"CNCL")){resumePending=false;saveResume();banner("Saved game ended or cancelled");}
+                else if(gd::isLive(trackedGame)||gd::isUpcoming(trackedGame)) {
+                    for(size_t i=0;i<wled.size();++i)if(wled.at(i).ip==resumeIp)uiState.selectedLed=i;
+                    if(uiState.selectedLed>=0 && wled.at(uiState.selectedLed).ip==resumeIp && !wled.autoRestorePending() && wled.probe(uiState.selectedLed)) {
+                        if(goals.arm(&trackedGame,millis())) {
+                            goals.observeFeed(feed,millis());reactions.setTeamColors(gd::teamColor(trackedGame.away),gd::teamColor(trackedGame.home));
+                            resumePending=false;saveResume();banner("Monitoring resumed; old events skipped");
+                        }
+                    }
+                }
+            }
+        }
+    }
     const uint32_t started = reactions.startedCount(), restored = reactions.restoreCount();
     if(effectPreview && (!online || (int32_t)(millis()-effectPreviewEnds)>=0)){
         effectPreview=false;String error;if(!wled.restoreAuto(error))banner(error);
     }
+    bool wasArmed=goals.armed();
     if(!effectPreview)reactions.service(millis(), online);
+    if(wasArmed&&!goals.armed())saveResume();
     // Recovery must also work if NHL is unavailable or no WLED is selected.
     // See implementation: the driver should only depend on Wi-Fi for restore.
     if (reactions.startedCount() != started) {

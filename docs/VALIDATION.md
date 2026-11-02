@@ -147,3 +147,14 @@ Source commit: `e54e752f62823847776f43a7b2bf34df00f67bc3`, branch `feature/ddp-e
 The ESP32 now also keeps the final-goal window when only goal effects are enabled, matching Fire TV. Native regression coverage includes this configuration. All seven effect patterns, team filters, toggles, previews, delay and journaled restoration are implemented on both physical platforms. Browser preview remains a mock and the separate hosted deployment is unchanged.
 
 These are successful software builds, not hardware acceptance. Verify WLED mapping/restoration, CYD speaker/touch/heap behavior and Fire TV playback performance before considering the feature production-ready. The branch has not been merged into main.
+
+
+## v0.5.2 — upcoming games and controller usability
+
+Implemented device paging (ESP32, capacity 8), upcoming-game waiting/arming,
+seven-day date browsing, local kickoff display, game-ID monitoring across date
+changes, explicit optional reboot resume, and local browser mock coverage.
+ESP32/Fire TV retain event masks, team mode, delay, no-replay baselines and scene
+restoration. See `docs/V052_FIELD_TEST.md` for scope and hardware acceptance.
+Automated validation is recorded with the release builds; real-device acceptance
+is pending. Hosted Lovable simulator remains a separate deployment.

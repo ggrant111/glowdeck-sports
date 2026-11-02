@@ -49,6 +49,7 @@ public final class MainActivity extends Activity {
     private NhlApi.Board board; private NhlApi.Game selected;
     private final List<String> lines=new ArrayList<>();
     private List<NhlApi.Play> recentPlays=new ArrayList<>();
+    private int scheduleDay=0;
     private int page=0,delaySec=0,celebrationMode=CelebrationSelection.AWAY;private String serviceState="";
     private boolean wledConnected=false,scoreBusy=false,pbpBusy=false,resumed=false,previewActive=false,restoreBusy=false;
     private String wledIp="192.168.1.71",wledName="Not connected",fetchStatus="Not checked",lastScoreAt="Never";
@@ -80,7 +81,7 @@ public final class MainActivity extends Activity {
         }));
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.4.1 started. Local iPhone audio management is available.");
+        log("GameDay Fire TV v0.5.2 started. Local iPhone audio management is available.");
         buildShell();render();
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
     }
@@ -168,10 +169,13 @@ public final class MainActivity extends Activity {
         if(getCurrentFocus()==null && nav.getChildCount()>0)nav.getChildAt(page).requestFocus();
     }
     private void pageScores(){
-        heading("LIVE NHL SCORES");subtitle("Direct NHL API  •  "+lastScoreAt+"  •  60-second updates");
+        heading("NHL SCORES / SCHEDULE");subtitle("Direct NHL API  •  "+lastScoreAt+"  •  60-second updates");
         LinearLayout tools=row();buttons(tools,action("REFRESH NHL",true,()->refreshScores(true)));body.addView(tools);
+        LinearLayout days=row();
+        for(int d=0;d<7;d++){final int day=d;days.addView(action(d==0?"TODAY":d==1?"TOMORROW":"+"+d+" DAYS",scheduleDay==d,()->{scheduleDay=day;refreshScores(true);}),new LinearLayout.LayoutParams(0,dp(60),1));}
+        body.addView(days);subtitle("Start times use this Fire TV's timezone. Select any day in the next 7 days.");
         if(board==null){card("No games loaded yet","Press REFRESH NHL. Network errors appear in LOG / HELP.");return;}
-        if(board.games.isEmpty()){card("No NHL games today",board.date+" — this is not a connection error.");return;}
+        if(board.games.isEmpty()){card("No NHL games on this date",board.date+" — this is not a connection error.");return;}
         for(NhlApi.Game g:board.games){
             boolean selectedGame=selected!=null && selected.id==g.id;
             Button b=action(g.matchup()+"     "+g.score()+"      "+g.status(),selectedGame,()->chooseGame(g));
@@ -180,6 +184,8 @@ public final class MainActivity extends Activity {
     }
     private void pageGame(){
         heading("GAME / PLAY-BY-PLAY");
+        LinearLayout resume=row();buttons(resume,action("RESUME AFTER REBOOT: "+(prefs.getBoolean("resumeEnabled",false)?"ON":"OFF"),prefs.getBoolean("resumeEnabled",false),()->{
+            prefs.edit().putBoolean("resumeEnabled",!prefs.getBoolean("resumeEnabled",false)).apply();render();}));body.addView(resume);
         if(selected==null){
             if(GameDayService.isRunning()){
                 card("Monitoring in background",monitorStatus()+" • "+monitorDetail());
@@ -354,7 +360,7 @@ public final class MainActivity extends Activity {
         LinearLayout tools=row();buttons(tools,action("REFRESH SCORES",true,()->refreshScores(true)),action("CLEAR LOG",false,()->{lines.clear();log("Log cleared");render();}));body.addView(tools);
         for(int i=lines.size()-1;i>=0;i--)body.addView(txt(lines.get(i),16,MUTED,false));
         heading("Installation / safety");
-        subtitle("- Select LIVE NHL game and connected WLED, then ARM IN BACKGROUND.\n- Press HOME to watch a streaming app; foreground service keeps polling.\n- The ongoing notification has a STOP monitoring action.\n- Return to GameDay and press STOP to end. Reboot/force-stop does not re-arm.\n- NHL play-by-play polling: 25s; feed errors pause then re-baseline.\n- Choose AWAY, HOME or BOTH celebrations per selected game. Both uses the scoring team color for 8s and restores WLED.\n- If restore fails, stop and open WLED tab to retry; never use safety-critical lights.\n- Fire OS memory/sleep restrictions may stop the service; verify on your own Fire TV.");
+        subtitle("- Select upcoming or LIVE NHL game and connected WLED, then ARM IN BACKGROUND.\n- Press HOME to watch a streaming app; foreground service keeps polling.\n- The ongoing notification has a STOP monitoring action.\n- Return to GameDay and press STOP to end. Reboot resume is optional in GAME; force-stop still prevents automatic restart.\n- NHL play-by-play polling: 25s; feed errors pause then re-baseline.\n- Choose AWAY, HOME or BOTH celebrations per selected game. Both uses the scoring team color for 8s and restores WLED.\n- If restore fails, stop and open WLED tab to retry; never use safety-critical lights.\n- Fire OS memory/sleep restrictions may stop the service; verify on your own Fire TV.");
     }
     private void log(String m){String stamp=DateFormat.getTimeInstance(DateFormat.MEDIUM,Locale.US).format(new Date());lines.add(stamp+"  "+m);if(lines.size()>70)lines.remove(0);android.util.Log.i("GlowDeckGameDay",m);}
     private void chooseGame(NhlApi.Game g){
@@ -376,14 +382,14 @@ public final class MainActivity extends Activity {
         try {T v=fn.run();ui.post(()->done.ok(v));}
         catch(Exception e){String error=e.getMessage()==null?e.toString():e.getMessage();ui.post(()->{log(name+": "+error);if(root!=null)render();});}
     });}
-    private void refreshScores(boolean manual){if(scoreBusy)return;scoreBusy=true;lastScoresMs=System.currentTimeMillis();fetchStatus="fetching...";render();
+    private void refreshScores(boolean manual){if(scoreBusy)return;final int requestedDay=scheduleDay;scoreBusy=true;lastScoresMs=System.currentTimeMillis();fetchStatus="fetching...";render();
         io.execute(()->{
-            try{NhlApi.Board incoming=NhlApi.scores();ui.post(()->{
-                scoreBusy=false;board=incoming;fetchStatus="online";lastScoreAt=incoming.date+" • "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date());
+            try{NhlApi.Board incoming=NhlApi.scores(requestedDay);ui.post(()->{
+                scoreBusy=false;if(scheduleDay!=requestedDay){refreshScores(true);return;}board=incoming;fetchStatus="online";lastScoreAt=incoming.date+" • "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date());
                 if(selected!=null){for(NhlApi.Game g:incoming.games)if(g.id==selected.id){selected=g;break;}}
                 if(manual)log("NHL score API OK: "+incoming.games.size()+" games for "+incoming.date);
                 render();
-            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;fetchStatus="error";log("NHL scores ERROR: "+err);render();});}
+            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;if(scheduleDay!=requestedDay){refreshScores(true);return;}fetchStatus="error";log("NHL scores ERROR: "+err);render();});}
         });
     }
     private String currentIp(){return ipEntry==null?wledIp:ipEntry.getText().toString().trim();}
@@ -464,7 +470,7 @@ public final class MainActivity extends Activity {
     }
     private void arm(){
         if(GameDayService.isRunning()||GameDayService.isStopping())return;
-        if(selected==null||!selected.live()){log("Select a LIVE NHL game before monitoring");render();return;}
+        if(selected==null||(!selected.live()&&!selected.upcoming())){log("Select an upcoming or LIVE NHL game before monitoring");render();return;}
         if(!wledConnected||!AddressValidator.isPrivateLanIpv4(wledIp)||hasJournal()||previewActive){
             log("Connect a valid WLED device; finish any pending scene restore first");render();return;
         }

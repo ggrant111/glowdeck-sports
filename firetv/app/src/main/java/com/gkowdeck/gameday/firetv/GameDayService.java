@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Opt-in foreground NHL goal monitor. Runs independently of MainActivity so the viewer can
  * open streaming apps. The system may still stop the process; no unattended guarantees.
- * No auto-resume after a reboot or process death (START_NOT_STICKY).
+ * Optional explicit reboot resume; ordinary service restart remains START_NOT_STICKY.
  */
 public final class GameDayService extends Service {
     public static final String START = "com.gkowdeck.gameday.firetv.START_MONITOR";
@@ -47,7 +47,7 @@ public final class GameDayService extends Service {
     private GameAudio sound;
     private long gameId, lastSuccessfulPoll, lastScoreCheck, lastEffectAt;
     private String away, home, ip;
-    private boolean baselined, paused;
+    private boolean baselined, paused, waiting, observedLive;
     private int celebrationMode;
     private int delaySec;
     private ScheduledFuture<?> pollTask, queuedGoal, restoreTask;
@@ -120,12 +120,14 @@ public final class GameDayService extends Service {
         state = "STARTING";
         startForeground(NOTIFICATION_ID, notification("Checking NHL baseline and WLED"));
         publish("STARTING", "Checking NHL baseline and WLED");
+        monitor.edit().putBoolean("resumeArmed",true).apply();
         worker.execute(this::startMonitor);
         return START_NOT_STICKY; // don't silently re-arm after an OS kill
     }
 
     private void startMonitor() {
         try {
+            paused=true;
             if (gameId <= 0 || !AddressValidator.isPrivateLanIpv4(ip) || away == null || home == null)
                 throw new Exception("Invalid game or WLED selection");
             if (stopping) return;
@@ -134,20 +136,13 @@ public final class GameDayService extends Service {
                 restoreSavedState();
             }
             WledApi.info(ip); // required: selected target answers as WLED
-            NhlApi.Board scores = NhlApi.scores();
-            if (!gameIsLive(scores)) throw new Exception("Game no longer LIVE; reselect and arm");
-            lastScoreCheck = System.currentTimeMillis();
-            NhlApi.Pbp pbp = NhlApi.plays(gameId);
-            if (pbp.awayId <= 0 || pbp.homeId <= 0) throw new Exception("NHL team IDs unavailable");
-            sports.update(pbp,eventMask,celebrationMode);
-            tracker.update(events(pbp)); // baseline includes all prior goals, no replay
-            baselined = true;
-            lastSuccessfulPoll = System.currentTimeMillis();
-            paused = false;
-            if (stopping) return;
-            publish("ARMED", away + " @ " + home + " • " + CelebrationSelection.label(celebrationMode,away,home) + " goals • " + delaySec + "s delay");
+            pollSafe();
+            if(stopping)return;
             pollTask = worker.scheduleWithFixedDelay(this::pollSafe, 25, 25, TimeUnit.SECONDS);
-        } catch (Exception ex) { failAndStop("Unable to arm: " + message(ex)); }
+        } catch (Exception ex) {
+            paused=true;publish("PAUSED","Waiting for WLED/network: "+message(ex));
+            if(!stopping)pollTask=worker.schedule(this::startMonitor,30,TimeUnit.SECONDS);
+        }
     }
     private static List<GoalTracker.Event> events(NhlApi.Pbp pbp) {
         List<GoalTracker.Event> e = new ArrayList<>();
@@ -162,14 +157,20 @@ public final class GameDayService extends Service {
         if (stopping || !running) return;
         try {
             long now = System.currentTimeMillis();
-            // Stop after finals and avoid reacting to an already-finished match.
-            if (now - lastScoreCheck >= 55_000) {
-                NhlApi.Board scores = NhlApi.scores();
-                lastScoreCheck = System.currentTimeMillis();
-                if (!useDdp && !gameIsLive(scores)) { shutDown("Game is no longer live"); return; }
-            }
             NhlApi.Pbp pbp = NhlApi.plays(gameId);
             if (pbp.awayId <= 0 || pbp.homeId <= 0) throw new Exception("NHL team IDs unavailable");
+            if("CNCL".equals(pbp.state)){shutDown("Game cancelled");return;}
+            if("FUT".equals(pbp.state)||"PRE".equals(pbp.state)||"PPD".equals(pbp.state)) {
+                waiting=true;cancelGoal();
+                tracker.reset();tracker.update(events(pbp));sports.reset();sports.update(pbp,eventMask,celebrationMode);
+                baselined=true;paused=false;lastSuccessfulPoll=now;
+                publish("WAITING",away+" @ "+home+("PPD".equals(pbp.state)?" • postponed; waiting for reschedule":" • armed, waiting for game start"));
+                return;
+            }
+            if(pbp.finished()&&!useDdp){shutDown("Game ended; lights restored");return;}
+            if(pbp.finished()&&!observedLive){shutDown("Saved game already finished; no events replayed");return;}
+            if("LIVE".equals(pbp.state)||"CRIT".equals(pbp.state))observedLive=true;
+            if(waiting){waiting=false;publish("ARMED",away+" @ "+home+" • monitoring live");}
             now = System.currentTimeMillis();
             if(pbp.finished() && finalSeenAt==0)finalSeenAt=now;
             if(finalSeenAt>0 && now-finalSeenAt>125000 && queuedGoal==null && restoreTask==null && deferredFinal==null){shutDown("Game ended; effects restored");return;}
@@ -182,7 +183,7 @@ public final class GameDayService extends Service {
                 tracker.reset(); tracker.update(events(pbp));
                 sports.reset();sports.update(pbp,eventMask,celebrationMode);deferredFinal=null;
                 publish("ARMED", "Feed resumed; old goals skipped, monitoring new events");
-                paused = false;
+                paused = false;baselined=true;
             } else {
                 SportEventTracker.Cue cue=sports.update(pbp,eventMask,celebrationMode);
                 if(cue!=null&&cue.kind==EventEffects.GAME_END)deferredFinal=cue;
@@ -218,7 +219,11 @@ public final class GameDayService extends Service {
             if (stopping || paused || !running || lab.contains("restoreJson")) return;
             try {
                 // Recheck game status immediately before modifying WLED.
-                if (!useDdp && !gameIsLive(NhlApi.scores())) { shutDown("Game finished before goal scene"); return; }
+                NhlApi.Pbp current=NhlApi.plays(gameId);
+                if("CNCL".equals(current.state)||(!useDdp&&current.finished())){shutDown("Game ended or cancelled");return;}
+                if(!"LIVE".equals(current.state)&&!"CRIT".equals(current.state)&&!(useDdp&&current.finished())){
+                    paused=true;publish("WAITING","Game not live; pending effect skipped");return;
+                }
                 lastEffectAt = System.currentTimeMillis();
                 scene(team,kind);
             } catch (Exception ex) {
@@ -266,6 +271,7 @@ public final class GameDayService extends Service {
     }
     private void shutDown(String why) {
         stopping = true;
+        monitor.edit().putBoolean("resumeArmed",false).apply();
         if(sound!=null)sound.stop();
         cancelGoal();
         if (pollTask != null) pollTask.cancel(false);

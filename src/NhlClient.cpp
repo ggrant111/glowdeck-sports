@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <string.h>
+#include <time.h>
 
 namespace {
 void copy(char* dest, size_t len, const char *src) {
@@ -11,7 +12,7 @@ void copy(char* dest, size_t len, const char *src) {
 }
 }
 
-bool NhlClient::poll(gd::Scoreboard &out, String &error) {
+bool NhlClient::poll(gd::Scoreboard &out, String &error, uint8_t dayOffset) {
     error = "";
     WiFiClientSecure client;
     // Prototype only: allow encrypted transport without certificate validation.
@@ -23,7 +24,15 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
     http.useHTTP10(true);
     http.setTimeout(10000);
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    if (!http.begin(client, "https://api-web.nhle.com/v1/score/now")) {
+    String date="now";
+    time_t now=time(nullptr);
+    if(dayOffset && now<1700000000) {error="Clock syncing; retry schedule";return false;}
+    if(now>=1700000000) {
+        struct tm day;localtime_r(&now,&day);day.tm_mday+=min(dayOffset,uint8_t(6));
+        day.tm_hour=12;day.tm_min=0;day.tm_sec=0;day.tm_isdst=-1;mktime(&day);
+        char stamp[11];strftime(stamp,sizeof(stamp),"%Y-%m-%d",&day);date=stamp;
+    }
+    if (!http.begin(client, "https://api-web.nhle.com/v1/score/"+date)) {
         error = "NHL connection setup failed";
         return false;
     }
@@ -35,8 +44,10 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
         return false;
     }
     // Filter + stream parsing dramatically reduces memory use vs a full JSON response.
-    StaticJsonDocument<768> filter;
+    StaticJsonDocument<1536> filter;
     filter["currentDate"] = true;
+    filter["games"][0]["startTimeUTC"] = true;
+    filter["games"][0]["gameScheduleState"] = true;
     // ArduinoJson array filter index 0 is applied to every game in the array.
     filter["games"][0]["id"] = true;
     filter["games"][0]["gameState"] = true;
@@ -70,6 +81,9 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
         copy(game.away, sizeof(game.away), item["awayTeam"]["abbrev"] | "?");
         copy(game.home, sizeof(game.home), item["homeTeam"]["abbrev"] | "?");
         copy(game.state, sizeof(game.state), item["gameState"] | "");
+        const char *schedule=item["gameScheduleState"]|"";
+        if(!strcmp(schedule,"PPD")||!strcmp(schedule,"CNCL"))copy(game.state,sizeof(game.state),schedule);
+        copy(game.startTime,sizeof(game.startTime),item["startTimeUTC"]|"");
         copy(game.clock, sizeof(game.clock), item["clock"]["timeRemaining"] | "");
         game.awayScore = (uint8_t)(item["awayTeam"]["score"] | 0);
         game.homeScore = (uint8_t)(item["homeTeam"]["score"] | 0);
@@ -81,7 +95,7 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
     return true;
 }
 
-bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
+bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error, gd::Game *details) {
     error = "";
     if (gameId < 2000000000UL || gameId > 2999999999UL) {
         error="Invalid NHL game ID"; return false;
@@ -102,7 +116,11 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
     if (status!=HTTP_CODE_OK) { error="PBP HTTP "+String(status); http.end(); return false; }
 
     // Filtered streaming read avoids holding enormous full play objects in RAM.
-    StaticJsonDocument<1024> filter;
+    StaticJsonDocument<2048> filter;
+    filter["startTimeUTC"]=true; filter["gameScheduleState"]=true;
+    filter["awayTeam"]["abbrev"]=true;filter["homeTeam"]["abbrev"]=true;
+    filter["awayTeam"]["score"]=true;filter["homeTeam"]["score"]=true;
+    filter["periodDescriptor"]["number"]=true;filter["clock"]["timeRemaining"]=true;
     filter["id"]=true;
     filter["gameState"]=true;
     filter["plays"][0]["periodDescriptor"]["periodType"]=true;
@@ -118,7 +136,11 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
         DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(14));
     http.end();
     if(parse) { error=String("PBP JSON: ")+parse.c_str(); return false; }
-    if(!doc["plays"].is<JsonArray>() || !doc["awayTeam"]["id"].is<int>() ||
+    const char *feedState=doc["gameState"]|"";
+    const char *scheduleState=doc["gameScheduleState"]|"";
+    if(!strcmp(scheduleState,"PPD")||!strcmp(scheduleState,"CNCL"))feedState=scheduleState;
+    const bool pre=!strcmp(feedState,"FUT")||!strcmp(feedState,"PRE")||!strcmp(feedState,"PPD")||!strcmp(feedState,"CNCL");
+    if((!pre && !doc["plays"].is<JsonArray>()) || !doc["awayTeam"]["id"].is<int>() ||
        !doc["homeTeam"]["id"].is<int>()) {
         error="PBP missing required fields"; return false;
     }
@@ -130,7 +152,18 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
        sample.awayId==sample.homeId) {
         error="PBP game/team mismatch"; return false;
     }
-    const char *state=doc["gameState"]|"";
+    if(details) {
+        details->id=sample.gameId;
+        copy(details->away,sizeof(details->away),doc["awayTeam"]["abbrev"]|"?");
+        copy(details->home,sizeof(details->home),doc["homeTeam"]["abbrev"]|"?");
+        copy(details->state,sizeof(details->state),feedState);
+        copy(details->startTime,sizeof(details->startTime),doc["startTimeUTC"]|"");
+        copy(details->clock,sizeof(details->clock),doc["clock"]["timeRemaining"]|"");
+        details->awayScore=doc["awayTeam"]["score"]|0;details->homeScore=doc["homeTeam"]["score"]|0;
+        details->period=doc["periodDescriptor"]["number"]|0;
+    }
+    const char *state=feedState;
+    copy(sample.state,sizeof(sample.state),state);
     sample.final=strcmp(state,"OFF")==0||strcmp(state,"FINAL")==0;
     int previousAdvantage=-1;
     for(JsonObject play: doc["plays"].as<JsonArray>()) {

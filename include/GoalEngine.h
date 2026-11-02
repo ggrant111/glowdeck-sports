@@ -19,6 +19,7 @@ public:
     bool arm(const Game *current, uint32_t nowMs);
     void disarm();
     void pause(); // network/PBP failure: keep armed, cancel pending, rebaseline on recovery
+    bool waiting() const { return waiting_; }
     bool armed() const { return armed_; }
     bool paused() const { return paused_; }
     bool baselined() const { return baselineReady_; }
@@ -40,6 +41,7 @@ private:
     uint32_t gameId_ = 0;
     CelebrationMode mode_ = CelebrationMode::Away;
     uint8_t delaySeconds_ = 0;
+    bool waiting_ = false;
     bool armed_ = false, paused_ = false, baselineReady_ = false;
     uint32_t lastEventId_ = 0, homeId_ = 0, awayId_ = 0;
     GoalEvent pending_{};

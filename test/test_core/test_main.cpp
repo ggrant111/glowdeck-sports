@@ -50,7 +50,7 @@ void test_colors() {
     TEST_ASSERT_EQUAL_HEX32(0xFFB81C, gd::teamColor("BOS"));
     TEST_ASSERT_EQUAL_HEX32(0x31837A, gd::teamColor("BAD"));
 }
-void test_default_disarmed_and_requires_live_game();
+void test_default_disarmed_and_accepts_upcoming_game();
 void test_goal_dedup_and_delay();
 void test_correction_and_multigoal_suppress();
 void test_game_switch_and_disarm_cancel();
@@ -77,8 +77,14 @@ void test_event_baseline_delay_mask_and_dedupe();
 void test_goal_then_final_and_outage_baseline();
 void test_team_powerplay_filter_and_neutral_events();
 void test_ddp_goal_only_keeps_final_goal_window();
+void test_pregame_start_and_goal_baseline();
+void test_pregame_outage_cancel_and_missing_board();
+void test_pregame_never_triggers_and_postponed_waits();
 int main(int, char**) {
     UNITY_BEGIN();
+    RUN_TEST(test_pregame_start_and_goal_baseline);
+    RUN_TEST(test_pregame_outage_cancel_and_missing_board);
+    RUN_TEST(test_pregame_never_triggers_and_postponed_waits);
     RUN_TEST(test_ddp_goal_only_keeps_final_goal_window);
     RUN_TEST(test_ddp_packet_boundaries);
     RUN_TEST(test_manpower_and_period_types);
@@ -92,7 +98,7 @@ int main(int, char**) {
     RUN_TEST(test_live_crit);
     RUN_TEST(test_find_game);
     RUN_TEST(test_colors);
-    RUN_TEST(test_default_disarmed_and_requires_live_game);
+    RUN_TEST(test_default_disarmed_and_accepts_upcoming_game);
     RUN_TEST(test_goal_dedup_and_delay);
     RUN_TEST(test_correction_and_multigoal_suppress);
     RUN_TEST(test_game_switch_and_disarm_cancel);

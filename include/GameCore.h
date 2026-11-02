@@ -24,6 +24,7 @@ struct GoalFeed {
     uint8_t count = 0;
     ExtraPlay extra[64];
     uint8_t extraCount=0;
+    char state[12] = "";
     bool final=false;
     bool valid = false;
 };
@@ -35,6 +36,7 @@ struct Game {
     char home[5] = "";
     char state[12] = "";
     char clock[14] = "";
+    char startTime[25] = "";
     uint8_t awayScore = 0;
     uint8_t homeScore = 0;
     uint8_t period = 0;
@@ -57,6 +59,7 @@ struct GoalChange {
 GoalChange detectGoalChange(const Game &before, const Game &after);
 const Game* findGame(const Scoreboard &scores, uint32_t gameId);
 bool isLive(const Game &game);
+bool isUpcoming(const Game &game);
 uint32_t teamColor(const char *abbrev);
 const char* gameStateText(const Game &game);
 }

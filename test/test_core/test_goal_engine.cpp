@@ -32,9 +32,10 @@ struct FakeLight : gd::LightPort {
     bool needsRestore() const override {return outstanding;}
 };
 }
-void test_default_disarmed_and_requires_live_game() {
+void test_default_disarmed_and_accepts_upcoming_game() {
     gd::GoalEngine e; e.selectGame(1);
-    gd::Game g=game(1,"FUT");TEST_ASSERT_FALSE(e.arm(&g,0));
+    gd::Game g=game(1,"FUT");TEST_ASSERT_TRUE(e.arm(&g,0));TEST_ASSERT_TRUE(e.waiting());
+    g=game(1,"OFF");TEST_ASSERT_FALSE(e.arm(&g,0));
     g=game();TEST_ASSERT_TRUE(e.arm(&g,100));
     TEST_ASSERT_TRUE(e.armed());TEST_ASSERT_TRUE(e.paused());
     TEST_ASSERT_FALSE(e.baselined());
@@ -186,4 +187,30 @@ void test_multi_goal_jump_and_duplicate_event_ids() {
     TEST_ASSERT_FALSE(e.pending());
     e.observeFeed(feed(4,{{3,11},{4,22}}),2000);
     TEST_ASSERT_FALSE(e.pending());
+}
+
+void test_pregame_start_and_goal_baseline() {
+    gd::GoalEngine e;e.selectGame(1);e.setEventMask(127,true);gd::Game g=game(1,"FUT");
+    TEST_ASSERT_TRUE(e.arm(&g,0));auto pre=feed(0);strcpy(pre.state,"PRE");
+    e.observeFeed(pre,1000);TEST_ASSERT_TRUE(e.waiting());TEST_ASSERT_FALSE(e.pending());
+    auto live=feed(1);strcpy(live.state,"LIVE");live.extraCount=1;live.extra[0].id=1;live.extra[0].kind=gd::SportEvent::PeriodStart;
+    e.observeFeed(live,2000);TEST_ASSERT_FALSE(e.waiting());TEST_ASSERT_TRUE(e.ready(2000));
+    TEST_ASSERT_EQUAL_INT(int(gd::SportEvent::PeriodStart),int(e.consume(2000).kind));
+    e.observeFeed(feed(2,{{2,11}}),23000);TEST_ASSERT_TRUE(e.ready(23000));
+}
+void test_pregame_outage_cancel_and_missing_board() {
+    gd::GoalEngine e;e.selectGame(1);gd::Game g=game(1,"FUT");e.arm(&g,0);
+    auto pre=feed(0);strcpy(pre.state,"FUT");e.observeFeed(pre,0);
+    e.observeGame(nullptr);TEST_ASSERT_TRUE(e.armed());TEST_ASSERT_TRUE(e.paused());
+    auto live=feed(4,{{4,11}});strcpy(live.state,"LIVE");e.observeFeed(live,10000);
+    TEST_ASSERT_FALSE(e.pending());e.observeFeed(feed(5,{{4,11},{5,11}}),20000);TEST_ASSERT_TRUE(e.pending());
+    auto cancelled=feed(5);strcpy(cancelled.state,"CNCL");e.observeFeed(cancelled,21000);
+    TEST_ASSERT_FALSE(e.armed());TEST_ASSERT_FALSE(e.pending());
+}
+void test_pregame_never_triggers_and_postponed_waits() {
+    gd::GoalEngine e;e.selectGame(1);gd::Game g=game(1,"FUT");e.arm(&g,0);
+    auto pre=feed(3,{{3,11}});strcpy(pre.state,"PRE");e.observeFeed(pre,1);
+    TEST_ASSERT_FALSE(e.pending());TEST_ASSERT_FALSE(e.ready(1));
+    strcpy(pre.state,"PPD");e.observeFeed(pre,2);TEST_ASSERT_TRUE(e.armed());TEST_ASSERT_TRUE(e.waiting());
+    e.disarm();TEST_ASSERT_FALSE(e.waiting());
 }

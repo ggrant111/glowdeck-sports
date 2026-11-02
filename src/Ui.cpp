@@ -1,4 +1,18 @@
 #include "Ui.h"
+#include <time.h>
+namespace {
+String localStart(const char *stamp) {
+    struct tm utc={};
+    if(!strptime(stamp,"%Y-%m-%dT%H:%M:%S",&utc))return "TBD";
+    // mktime uses local TZ; compensate through timegm equivalent using UTC civil conversion.
+    int year=utc.tm_year+1900,month=utc.tm_mon+1;year-=month<=2;
+    const int era=(year>=0?year:year-399)/400;const unsigned yoe=year-era*400;
+    const unsigned doy=(153*(month+(month>2?-3:9))+2)/5+utc.tm_mday-1;
+    time_t epoch=(era*146097+int(yoe*365+yoe/4-yoe/100+doy)-719468)*86400LL+utc.tm_hour*3600+utc.tm_min*60;
+    struct tm local;localtime_r(&epoch,&local);char out[10];strftime(out,sizeof(out),"%H:%M",&local);return out;
+}
+}
+
 
 namespace {
 const uint16_t BG = 0x0842, CARD = 0x18E3, FG = 0xFFFF;
@@ -43,19 +57,21 @@ void Ui::footer() {
 void Ui::scores(const UiState &state) {
     const gd::Scoreboard &s = *state.scoreboard;
     if (!s.valid) {
+        button(5,35,180,21,"NEXT DAY >",CARD);
         tft_.setTextColor(MUTED, BG);
         tft_.drawCentreString("Waiting for NHL scores...", 160, 75, 2);
         tft_.drawCentreString("Connect WiFi to load games", 160, 110, 2);
         return;
     }
     if (s.count == 0) {
+        button(5,35,180,21,"NEXT DAY >",CARD);
         tft_.setTextColor(MUTED, BG);
         tft_.drawCentreString("No NHL games scheduled", 160, 76, 2);
         tft_.drawCentreString(s.date, 160, 109, 2);
         return;
     }
     tft_.setTextColor(MUTED, BG);
-    tft_.drawString(s.date, 7, 36, 2);
+    button(5,35,180,21,state.scheduleDay==0?"TODAY >":state.scheduleDay==1?"TOMORROW >":String(s.date)+" >",CARD);
     tft_.drawRightString("<      >", 311, 36, 2);
     for (int row=0; row<4; ++row) {
         int index = state.gamePage * 4 + row;
@@ -69,13 +85,13 @@ void Ui::scores(const UiState &state) {
         tft_.drawString(matchup, 14, y+8, 2);
         char score[14];
         snprintf(score, sizeof(score), "%u - %u", g.awayScore, g.homeScore);
-        tft_.drawCentreString(score, 196, y+8, 2);
+        tft_.drawCentreString(gd::isUpcoming(g)?localStart(g.startTime):String(score),196,y+8,2);
         tft_.setTextColor(gd::isLive(g) ? GOLD : MUTED, selected ? SELECT : CARD);
         tft_.drawRightString(gd::gameStateText(g), 303, y+8, 2);
     }
 }
 void Ui::gameday(const UiState &state) {
-    const gd::Game *game = gd::findGame(*state.scoreboard, state.selectedGameId);
+    const gd::Game *game = state.tracked;
     if (!game) {
         tft_.setTextColor(MUTED, BG);
         tft_.drawCentreString("Choose a game in SCORES", 160, 66, 2);
@@ -86,7 +102,7 @@ void Ui::gameday(const UiState &state) {
     tft_.drawCentreString(String(game->away) + "  " + String(game->awayScore) + " : " +
              String(game->homeScore) + "  " + game->home, 160, 42, 4);
     tft_.setTextColor(MUTED, BG);
-    tft_.drawCentreString(String(gd::gameStateText(*game)), 160, 73, 2);
+    tft_.drawCentreString(String(gd::gameStateText(*game))+(gd::isUpcoming(*game)?" "+localStart(game->startTime):String("")), 160, 73, 2);
     tft_.drawString("CELEBRATE", 10, 87, 2);
     button(8, 105, 96, 29, game->away,
         state.celebrationMode == gd::CelebrationMode::Away ? TEAL : CARD);
@@ -102,9 +118,9 @@ void Ui::gameday(const UiState &state) {
     button(12, 166, 296, 33, state.restorePending ? "RESTORING LIGHTS" :
         (state.goalActive ? "EVENT LIGHTS ACTIVE" : (state.goalArmed ? "DISARM GAMEDAY" : "ARM GAMEDAY")),
         state.goalArmed ? TEAL : CARD);
-    if (state.goalQueued || (state.goalArmed && state.goalPaused)) {
+    if (state.waiting || state.goalQueued || (state.goalArmed && state.goalPaused)) {
         tft_.setTextColor(GOLD, BG);
-        tft_.drawCentreString(state.goalQueued ? "Goal waiting for TV delay" :
+        tft_.drawCentreString(state.waiting ? "ARMED - waiting for game start" : state.goalQueued ? "Goal waiting for TV delay" :
              "Waiting for NHL PBP baseline", 160, 199, 1);
     }
 }
@@ -114,11 +130,14 @@ void Ui::lights(const UiState &state) {
         tft_.drawCentreString("No WLED devices found", 160, 64, 2);
         tft_.drawCentreString("Tap SCAN or use web setup", 160, 99, 2);
     }
-    for (size_t i=0; i<state.leds->size() && i<3; ++i) {
+    tft_.setTextColor(MUTED,BG);
+    tft_.drawCentreString(String(state.leds->size())+" devices / "+String(state.ledPage+1)+" of "+String(max(1,(int(state.leds->size())+2)/3)),160,36,1);
+    button(6,35,42,20,"<",CARD); button(272,35,42,20,">",CARD);
+    for (size_t i=state.ledPage*3; i<state.leds->size() && i<size_t(state.ledPage*3+3); ++i) {
         const LedDevice &d = state.leds->at(i);
-        const int y = 37 + (int)i*39;
+        const int y = 57 + (int(i)%3)*34;
         bool sel = (int)i == state.selectedLed;
-        tft_.fillRoundRect(7, y, 305, 35, 6, sel ? SELECT : CARD);
+        tft_.fillRoundRect(7, y, 305, 31, 6, sel ? SELECT : CARD);
         tft_.setTextColor(FG, sel ? SELECT : CARD);
         tft_.drawString(d.name.substring(0,16), 14, y+3, 2);
         tft_.setTextColor(d.online ? TFT_GREEN : MUTED, sel ? SELECT : CARD);
@@ -140,7 +159,7 @@ void Ui::setup(const UiState &state) {
     tft_.drawString(state.nhlConnected ? "Connected" : "Awaiting data", 92, 72, 2);
     tft_.setTextColor(MUTED, BG);
     if (!state.nhlError.isEmpty()) tft_.drawString(state.nhlError.substring(0,36), 8, 98, 1);
-    tft_.drawString("Configure WLED devices:", 9, 123, 2);
+    button(8,116,304,24,state.resumeEnabled?"RESUME AFTER REBOOT: ON":"RESUME AFTER REBOOT: OFF",CARD);
     tft_.drawString(state.wifiConnected ? "http://" + state.ip : "Connect to Wi-Fi first", 9, 143, 2);
     button(8, 169, 147, 29, "REFRESH", TEAL);
     button(163,169,149,29,"EFFECTS",TEAL);
@@ -192,6 +211,9 @@ String Ui::renderKey(const UiState &s) const {
         key += String(value.length()); key += ':'; key += value;
     };
     add(String(static_cast<int>(page_)));
+    add(String(s.scheduleDay));add(String(s.resumeEnabled));
+    if(s.tracked){add(String(s.tracked->id));add(s.tracked->state);add(s.tracked->startTime);add(String(s.tracked->awayScore));add(String(s.tracked->homeScore));add(s.tracked->clock);}
+    add(String(s.ledPage)); add(String(s.waiting));
     add(String(s.selectedGameId)); add(String(s.selectedLed)); add(String(s.gamePage));
     add(String(s.wifiConnected)); add(String(s.nhlConnected));
     add(String(s.goalArmed)); add(String(s.goalActive)); add(String(s.goalQueued));
@@ -208,7 +230,7 @@ String Ui::renderKey(const UiState &s) const {
         add(String(scores.valid)); add(scores.date); add(String(scores.count));
         for (size_t i=0; i<scores.count && i<gd::MAX_GAMES; ++i) {
             const auto &g=scores.games[i];
-            add(String(g.id)); add(g.away); add(g.home); add(g.state); add(g.clock);
+            add(String(g.id)); add(g.away); add(g.home); add(g.state); add(g.clock);add(g.startTime);
             add(String(g.awayScore)); add(String(g.homeScore)); add(String(g.period));
         }
     }
@@ -255,6 +277,7 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         return {};
     }
     if (page_ == Page::Scores) {
+        if(y>=35&&y<57&&x<190)return {ActionType::ScheduleDay};
         if (y >= 35 && y < 56) {
             if (x > 270 && x < 292) return {ActionType::PreviousGames, -1};
             if (x >= 292) return {ActionType::NextGames, -1};
@@ -276,9 +299,13 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
         }
         if (y >= 166 && y < 200) return {ActionType::ToggleArm};
     } else if (page_ == Page::Lights) {
-        if (y >= 37 && y < 154) {
-            int row = (y-37)/39;
-            if (row < (int)state.leds->size() && row < 3) return {ActionType::SelectLed, row};
+        if (y>=35 && y<55) {
+            if(x<55)return {ActionType::PreviousLeds};
+            if(x>=265)return {ActionType::NextLeds};
+        }
+        if (y >= 57 && y < 159) {
+            int row=(y-57)/34, index=state.ledPage*3+row;
+            if (index < (int)state.leds->size() && row<3) return {ActionType::SelectLed,index};
         }
         if (y >= 165 && y < 199) {
             if (x < 80) return {ActionType::TeamAway, -1};
@@ -286,6 +313,8 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             if (x < 240) return {ActionType::PowerOff, -1};
             return {ActionType::ScanLeds, -1};
         }
+    } else if (page_ == Page::Setup && y>=116&&y<140) {
+        return {ActionType::ToggleResume};
     } else if (page_ == Page::Setup && y >= 169 && y < 200) {
         if(x>=160){page_=Page::Effects;return {};}
         return {ActionType::RefreshNhl, -1};

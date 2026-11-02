@@ -18,6 +18,7 @@ const Game* findGame(const Scoreboard &scores, uint32_t gameId) {
     return nullptr;
 }
 bool isLive(const Game &g) { return !strcmp(g.state, "LIVE") || !strcmp(g.state, "CRIT"); }
+bool isUpcoming(const Game &g) { return !strcmp(g.state,"FUT") || !strcmp(g.state,"PRE") || !strcmp(g.state,"PPD"); }
 const char* gameStateText(const Game &g) {
     if (isLive(g)) return "LIVE";
     if (!strcmp(g.state, "FINAL") || !strcmp(g.state, "OFF")) return "FINAL";

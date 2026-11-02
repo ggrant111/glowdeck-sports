@@ -10,6 +10,11 @@ struct UiState {
     uint32_t selectedGameId = 0;
     int selectedLed = -1;
     int gamePage = 0;
+    int ledPage = 0;
+    const gd::Game *tracked=nullptr;
+    uint8_t scheduleDay=0;
+    bool resumeEnabled=false;
+    bool waiting = false;
     bool wifiConnected = false;
     bool nhlConnected = false;
     bool goalArmed = false;
@@ -33,6 +38,7 @@ struct UiState {
 
 enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects };
 enum class ActionType : uint8_t {
+    PreviousLeds, NextLeds, ScheduleDay, ToggleResume,
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
     CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus,

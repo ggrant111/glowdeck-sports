@@ -24,3 +24,10 @@ run('disconnect()');assert.equal(run('s.active||s.pending||effectActive'),false)
 run('reset();selectGame();s.ddp=true;arm();s.effectMask&=~(1<<5);demoEffect(5,false,false)');assert.equal(run('s.pending||s.active'),false);
 run('demoEffect(1,true,false)');assert.equal(run('s.pending||s.active'),false); // HOME excluded in AWAY mode
 console.log('PASS browser handlers: preview, automatic restore, power-play trigger, outage, disabled event, team filter');
+
+run("reset();selectGame('FUT');s.ddp=true;arm();goal(false)");assert.equal(run('s.armed'),true);assert.equal(run('s.active||s.pending'),false);
+run('s.gameState="LIVE";demoEffect(2,false,false)');assert.equal(run('s.pending'),true);fireTimer();assert.equal(run('s.active'),true);
+run('s.resume=true;reset()');assert.equal(run('s.armed&&s.resume'),true);assert.equal(run('s.active||s.pending'),false);
+run('arm();reset()');assert.equal(run('s.armed'),false);
+run('s.page="lights";s.ledPage=2;render()');assert.match(elements.get('body').innerHTML,/WLED 8/);
+console.log('PASS browser upcoming waiting/start, opt-in reboot resume, disarm and last device page');

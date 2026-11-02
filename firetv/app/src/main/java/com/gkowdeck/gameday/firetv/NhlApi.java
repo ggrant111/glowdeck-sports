@@ -8,20 +8,32 @@ import java.util.List;
 final class NhlApi {
     static final String ROOT="https://api-web.nhle.com/v1";
     static final class Game {
-        long id;String away,home,state,clock;int awayId,homeId,awayScore,homeScore,period;
+        long id;String away,home,state,clock,startTime="";int awayId,homeId,awayScore,homeScore,period;
         boolean live(){return "LIVE".equals(state)||"CRIT".equals(state);}
+        boolean upcoming(){return "FUT".equals(state)||"PRE".equals(state)||"PPD".equals(state);}
+        String localStart(){
+            try {java.text.SimpleDateFormat utc=new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",java.util.Locale.US);
+                utc.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                return java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(utc.parse(startTime));
+            }catch(Exception e){return "Start time TBD";}
+        }
         String status(){
             if(live())return "LIVE P"+period+(clock.isEmpty()?"":"  "+clock);
             if("OFF".equals(state)||"FINAL".equals(state))return "FINAL";
-            if("FUT".equals(state)||"PRE".equals(state))return "UPCOMING";
+            if("FUT".equals(state)||"PRE".equals(state))return "UPCOMING • "+localStart();
             return state;
         }
         String score(){return ("FUT".equals(state)||"PRE".equals(state)) ? "vs" : awayScore+" – "+homeScore;}
         String matchup(){return away+" @ "+home;}
     }
     static class Board {String date; List<Game> games=new ArrayList<>();}
-    static Board scores()throws Exception {
-        JSONObject root=Net.get(ROOT+"/score/now");
+    static Board scores()throws Exception {return scores(0);}
+    static Board scores(int day)throws Exception {
+        java.util.Calendar c=java.util.Calendar.getInstance();c.add(java.util.Calendar.DAY_OF_YEAR,Math.max(0,Math.min(day,6)));
+        String date=new java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(c.getTime());
+        return parseScores(Net.get(ROOT+"/score/"+date));
+    }
+    static Board parseScores(JSONObject root)throws Exception {
         Board board=new Board();board.date=root.optString("currentDate","Today");
         JSONArray games=root.optJSONArray("games");if(games==null)throw new Exception("NHL scoreboard missing games array");
         for(int i=0;i<Math.min(games.length(),22);i++) {
@@ -32,7 +44,8 @@ final class NhlApi {
             g.away=a.optString("abbrev","AWY");g.home=h.optString("abbrev","HME");
             g.awayId=a.optInt("id",0);g.homeId=h.optInt("id",0);
             g.awayScore=a.optInt("score",0);g.homeScore=h.optInt("score",0);
-            g.state=o.optString("gameState","UNKNOWN");g.period=o.optInt("period",0);
+            g.startTime=o.optString("startTimeUTC","");
+            g.state=o.optString("gameScheduleState","");if(!"PPD".equals(g.state)&&!"CNCL".equals(g.state))g.state=o.optString("gameState","UNKNOWN");g.period=o.optInt("period",0);
             JSONObject clock=o.optJSONObject("clock");g.clock=clock==null?"":clock.optString("timeRemaining","");
             board.games.add(g);
         }
@@ -45,11 +58,14 @@ final class NhlApi {
     static class Pbp {String state; boolean finished(){return "OFF".equals(state)||"FINAL".equals(state);} long gameId;int homeId,awayId; List<Play> plays=new ArrayList<>();}
     static Pbp plays(long id)throws Exception {
         if(id<2000000000L || id>2999999999L)throw new Exception("Select a valid NHL game first");
-        JSONObject o=Net.get(ROOT+"/gamecenter/"+id+"/play-by-play");
-        Pbp pbp=new Pbp();pbp.gameId=id;pbp.state=o.optString("gameState","");
+        return parsePlays(id,Net.get(ROOT+"/gamecenter/"+id+"/play-by-play"));
+    }
+    static Pbp parsePlays(long id,JSONObject o)throws Exception {
+        Pbp pbp=new Pbp();pbp.gameId=id;pbp.state=o.optString("gameScheduleState","");if(!"PPD".equals(pbp.state)&&!"CNCL".equals(pbp.state))pbp.state=o.optString("gameState","");
+        if(o.optLong("id",0)!=id)throw new Exception("NHL game ID mismatch");
         JSONObject h=o.optJSONObject("homeTeam"),a=o.optJSONObject("awayTeam");
         pbp.homeId=h==null?0:h.optInt("id",0);pbp.awayId=a==null?0:a.optInt("id",0);
-        JSONArray list=o.optJSONArray("plays"); if(list==null)throw new Exception("No NHL play-by-play array in response");
+        JSONArray list=o.optJSONArray("plays"); if(list==null){if("FUT".equals(pbp.state)||"PRE".equals(pbp.state)||"PPD".equals(pbp.state)||"CNCL".equals(pbp.state))list=new JSONArray();else throw new Exception("No NHL play-by-play array in response");}
         for(int i=0;i<list.length();i++){
             JSONObject p=list.optJSONObject(i);if(p==null)continue;
             Play x=new Play(); x.eventId=p.optInt("eventId",0);

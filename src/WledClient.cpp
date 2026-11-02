@@ -78,11 +78,12 @@ bool WledClient::add(const String &host, String &error) {
 }
 void WledClient::discover() {
     if (WiFi.status() != WL_CONNECTED) return;
+    scanOverflow=false;
     int n = MDNS.queryService("wled", "tcp");
     for (int i=0; i<n; ++i) {
         String err;
         IPAddress addr = MDNS.IP(i);
-        if ((uint32_t)addr != 0) add(addr.toString(), err);
+        if ((uint32_t)addr != 0 && !add(addr.toString(), err) && err=="WLED list full (8)")scanOverflow=true;
     }
 }
 bool WledClient::remove(const String &ip) {

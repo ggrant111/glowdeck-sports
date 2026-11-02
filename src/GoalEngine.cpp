@@ -1,5 +1,6 @@
 #include "GoalEngine.h"
 #include <string.h>
+#include <stdio.h>
 
 namespace gd {
 namespace {
@@ -22,8 +23,9 @@ void GoalEngine::setDelay(uint8_t seconds) {
     cancelPending();
 }
 bool GoalEngine::arm(const Game *current, uint32_t nowMs) {
-    if (!current || !gameId_ || current->id != gameId_ || !isLive(*current)) return false;
+    if (!current || !gameId_ || current->id != gameId_ || (!isLive(*current) && !isUpcoming(*current))) return false;
     pending_ = GoalEvent(); finalSeen_=false;finalPending_=false;finalQueued_=false;
+    waiting_ = isUpcoming(*current);
     armed_ = true; paused_ = true; baselineReady_ = false;
     lastEventId_ = 0; homeId_ = 0; awayId_ = 0;
     lastFresh_ = nowMs; cooldown_ = false;
@@ -31,6 +33,7 @@ bool GoalEngine::arm(const Game *current, uint32_t nowMs) {
 }
 void GoalEngine::disarm() {
     finalPending_=false;
+    waiting_ = false;
     armed_ = false; paused_ = false; baselineReady_ = false;
     cancelPending();
 }
@@ -41,13 +44,30 @@ void GoalEngine::pause() {
 }
 void GoalEngine::observeGame(const Game *current) {
     bool final=current&&(strcmp(current->state,"OFF")==0||strcmp(current->state,"FINAL")==0);
-    if (armed_ && (!current || current->id != gameId_ || (!isLive(*current)&&!(streaming_&&final)))) disarm();
+    if (!armed_) return;
+    if (!current || current->id != gameId_) { pause(); return; }
+    if (!strcmp(current->state,"CNCL")) { disarm(); return; }
+    if (isUpcoming(*current)) { waiting_=true; cancelPending(); return; }
+    if (!isLive(*current) && !final) { pause(); return; }
+    if(final && !streaming_) { disarm(); return; }
+    waiting_=false;
 }
 void GoalEngine::observeFeed(const GoalFeed &feed, uint32_t nowMs) {
     if (!armed_) return;
     if (!feed.valid || feed.gameId != gameId_ || !feed.homeId || !feed.awayId ||
         feed.homeId == feed.awayId || feed.count > MAX_GOALS_PER_GAME || feed.extraCount>64) {
         pause(); return;
+    }
+    if (feed.state[0]) {
+        Game status; status.id=gameId_; snprintf(status.state,sizeof(status.state),"%s",feed.state);
+        observeGame(&status);
+        if (!armed_) return;
+        if (!isUpcoming(status) && !isLive(status) && !feed.final) return;
+    }
+    if (waiting_) {
+        lastEventId_=feed.latestEventId; homeId_=feed.homeId; awayId_=feed.awayId;
+        lastFresh_=nowMs; baselineReady_=true; paused_=false; cancelPending();
+        return; // Pregame baseline only: never change lights before live play.
     }
     bool newlyFinal=feed.final&&!finalSeen_;
     if(newlyFinal){finalSeen_=true;finalAt_=nowMs;}
@@ -105,7 +125,7 @@ void GoalEngine::expire(uint32_t nowMs) {
         (uint32_t)(nowMs-dueAt_) > 75000U) cancelPending();
 }
 bool GoalEngine::ready(uint32_t nowMs) const {
-    if (!armed_ || paused_ || !baselineReady_ || !pending_.valid) return false;
+    if (!armed_ || waiting_ || paused_ || !baselineReady_ || !pending_.valid) return false;
     if ((uint32_t)(nowMs-lastFresh_) > 75000U) return false;
     if (reached(nowMs,dueAt_) && (uint32_t)(nowMs-dueAt_) > 75000U) return false;
     return reached(nowMs,dueAt_);

@@ -16,6 +16,7 @@ let effectFrame=0,effectActive=false,effectToken=0;
 function stopEffectPreview(){effectToken++;cancelAnimationFrame(effectFrame);effectActive=false;const c=document.getElementById('effectStrip');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);}
 function demoEffect(kind,home=false,preview=true){
  if(!s.online||effectActive||s.pending||s.active){log('Effect blocked: offline or busy');return;}
+ if(!preview&&s.gameState&&s.gameState!=='LIVE'){log('Waiting for game start');return;}
  if(!preview&&(!s.armed||!s.ddp||(s.effectMask&(1<<kind))===0)){log('Event ignored: disarmed / DDP off / event disabled');return;}
  if(!preview&&(kind===0||kind===1)&&s.mode!=='both'&&s.mode!==(home?'home':'away')){log('Team event ignored');return;}
  if(!preview&&Date.now()<(s.cooldownUntil||0)){log('Cooldown: event ignored');return;}
