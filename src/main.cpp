@@ -5,6 +5,7 @@
 #include <WiFiManager.h>
 #include <Preferences.h>
 #include "GoalEngine.h"
+#include "AudioPlayer.h"
 #include <SPI.h>
 #include <XPT2046_Touchscreen.h>
 #include "GameCore.h"
@@ -48,6 +49,31 @@ public:
 };
 WledLightPort lightPort;
 gd::ReactionController reactions(goals, lightPort);
+AudioPlayer audio;
+bool soundEnabled=false; // safe default OFF every boot
+uint8_t soundVolume=50;
+gd::AudioChoice awaySound, homeSound;
+bool touchSuspendedForSd=false;
+
+void restoreTouchBus() {
+    if(!touchSuspendedForSd || audio.busy()) return;
+    touchSpi.begin(TOUCH_CLK,TOUCH_MISO,TOUCH_MOSI,TOUCH_CS);
+    touch.begin(touchSpi);
+    touch.setRotation(1);
+    touchSuspendedForSd=false;
+}
+void loadSoundForTeams();
+bool trySound(const gd::AudioChoice &choice) {
+    if(choice.kind==gd::SoundKind::Off)return false;
+    if(choice.kind==gd::SoundKind::CustomWav) {
+        if(touchSuspendedForSd) return false;
+        touchSpi.end();touchSuspendedForSd=true; // VSPI pin-mux given temporarily to SD
+    }
+    bool ok=audio.play(choice,soundVolume);
+    if(!ok){restoreTouchBus();Serial.println("Audio preview failed: "+audio.lastError());}
+    return ok;
+}
+
 WebServer web(80);
 gd::Scoreboard scores;
 uint32_t lastNhl = 0, lastPbp = 0;
@@ -75,6 +101,11 @@ void redraw() {
     uiState.goalQueued = goals.pending();
     uiState.goalActive = reactions.active();
     uiState.restorePending = wled.autoRestorePending();
+    uiState.soundEnabled=soundEnabled;
+    uiState.soundBusy=audio.busy();
+    uiState.soundVolume=soundVolume;
+    uiState.awaySound=awaySound.kind;
+    uiState.homeSound=homeSound.kind;
     ui.draw(uiState);
     lastUi = millis();
 }
@@ -92,6 +123,11 @@ void loadGameSettings() {
     goals.setDelay(p.getUChar("delay", 0));
     goals.setMode(gd::CelebrationMode::Away);
     p.end();
+    Preferences soundPrefs;soundPrefs.begin("gd-sound",true);
+    soundVolume=soundPrefs.getUChar("volume",50);
+    if(soundVolume>100)soundVolume=50;
+    soundPrefs.end();
+    soundEnabled=false; // deliberate user opt-in on each boot
     // Never persist armed=true. Require a live feed and deliberate arm each boot.
 }
 // Manual actions restore the automatic scene FIRST, rather than silently
@@ -104,6 +140,54 @@ bool clearAutoBeforeManual() {
     banner(err);
     return false;
 }
+void loadSoundForTeams() {
+    awaySound=gd::AudioChoice();homeSound=gd::AudioChoice();
+    const gd::Game* g=selectedGame();if(!g)return;
+    Preferences p;p.begin("gd-sound",true);
+    gd::AudioChoice* pair[2]={&awaySound,&homeSound};
+    const char* codes[2]={g->away,g->home};
+    for(int i=0;i<2;i++) {
+        String code=String(codes[i]);
+        pair[i]->kind=gd::validatedSound(p.getUChar(("k"+code).c_str(),1));
+        String clip=p.getString(("f"+code).c_str(),"GOAL");
+        if(!gd::validClipName(clip.c_str()))clip="GOAL";
+        strncpy(pair[i]->clip,clip.c_str(),sizeof(pair[i]->clip)-1);
+        pair[i]->clip[sizeof(pair[i]->clip)-1]=0;
+    }
+    p.end();
+}
+void saveSoundForTeam(bool home) {
+    const gd::Game *g=selectedGame();if(!g)return;
+    const char *team=home?g->home:g->away;
+    const gd::AudioChoice &c=home?homeSound:awaySound;
+    Preferences p;p.begin("gd-sound",false);
+    p.putUChar(("k"+String(team)).c_str(),(uint8_t)c.kind);
+    p.putString(("f"+String(team)).c_str(),c.clip);
+    p.end();
+}
+void cycleSound(bool home) {
+    gd::AudioChoice &c=home?homeSound:awaySound;
+    const uint8_t next=((uint8_t)c.kind+1)%5;
+    c.kind=gd::validatedSound(next);
+    saveSoundForTeam(home);
+    banner(String(home?"HOME":"AWAY")+" sound updated");
+}
+void toggleSound() {
+    soundEnabled=!soundEnabled;
+    if(!soundEnabled)audio.stop();
+    banner(soundEnabled?"Sound enabled":"Sound muted");
+}
+void adjustVolume(int delta) {
+    int n=(int)soundVolume+delta;
+    soundVolume=(uint8_t)constrain(n,0,100);
+    Preferences p;p.begin("gd-sound",false);p.putUChar("volume",soundVolume);p.end();
+    banner("Sound volume "+String(soundVolume)+"%");
+}
+void previewSound(bool home) {
+    const gd::AudioChoice &choice=home?homeSound:awaySound;
+    if(!trySound(choice))banner(String("Audio: ")+audio.lastError());
+    else banner(String("Sound preview: ")+(home?"HOME":"AWAY"));
+}
 void selectGame(uint32_t id) {
     if (goals.armed()) { banner("Disarm before changing game"); return; }
     if (!clearAutoBeforeManual()) return;
@@ -112,6 +196,7 @@ void selectGame(uint32_t id) {
     Preferences p; p.begin("gd-game",true);
     goals.setMode(gd::validatedMode(p.getUChar((String("m")+id).c_str(), 0)));
     p.end();
+    loadSoundForTeams();
     const gd::Game *g = selectedGame();
     if (g) banner(String("Selected ") + g->away + " @ " + g->home);
     else banner("Choose a live game");
@@ -136,6 +221,7 @@ void setGoalDelay(int delta) {
 void toggleArm() {
     if (goals.armed()) {
         goals.disarm();
+        audio.stop();
         reactions.service(millis(), WiFi.status() == WL_CONNECTED);
         banner("GameDay disarmed");
         return;
@@ -172,7 +258,7 @@ String htmlEscape(const String &s) {
 void redirectHome() { web.sendHeader("Location", "/", true); web.send(303, "text/plain", "Redirecting"); }
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
-body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.3</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.4</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
     page += "<section><h2>Status</h2><p>Wi-Fi: " + htmlEscape(WiFi.SSID()) + "<br>NHL: ";
     page += uiState.nhlConnected ? "connected" : "unavailable";
     page += "<br>Games today: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form></section>";
@@ -210,6 +296,24 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
         page += "<form method='post' action='/selectgame'><button name='id' value='" + String(item.id) + "'>" +
             htmlEscape(String(item.away)+" @ "+item.home+" "+gd::gameStateText(item)) + "</button></form>";
     }
+    page += "</section><section><h2>GameDay Sounds (v0.4)</h2><p>Built-in horns and SD WAV files. Sound OFF after reboot. Preview works without NHL/WLED.</p>";
+    page += "<p>Audio: " + String(soundEnabled?"ON":"OFF") + " | Volume: " + String(soundVolume) + "%</p>";
+    page += "<form method='post' action='/sound'><button name='action' value='toggle'>Sound ON/OFF</button></form>";
+    page += "<form method='post' action='/sound'><button name='action' value='down'>Volume -10</button></form>";
+    page += "<form method='post' action='/sound'><button name='action' value='up'>Volume +10</button></form>";
+    auto soundName=[](gd::SoundKind k)->String{switch(k){
+        case gd::SoundKind::Horn:return "Horn 1";case gd::SoundKind::DoubleHorn:return "Horn 2";
+        case gd::SoundKind::Siren:return "Horn 3";case gd::SoundKind::CustomWav:return "Custom WAV";
+        default:return "Off";
+    }};
+    page += "<p>Away: "+soundName(awaySound.kind)+" ("+htmlEscape(awaySound.clip)+")</p>";
+    page += "<p>Home: "+soundName(homeSound.kind)+" ("+htmlEscape(homeSound.clip)+")</p>";
+    page += "<form method='post' action='/sound'><button name='action' value='away'>Next away sound</button></form>";
+    page += "<form method='post' action='/sound'><button name='action' value='home'>Next home sound</button></form>";
+    page += "<form method='post' action='/sound'><button name='action' value='previewAway'>Preview away</button></form>";
+    page += "<form method='post' action='/sound'><button name='action' value='previewHome'>Preview home</button></form>";
+    page += "<p>Custom file name: /audio/NAME.wav (mono PCM 16 kHz, 16 bit, up to 10 seconds)</p>";
+    page += "<form method='post' action='/sound'><input name='clip' placeholder='GOAL' maxlength='24' required pattern='[A-Z0-9_-]+'><button name='action' value='fileAway'>Set away WAV</button><button name='action' value='fileHome'>Set home WAV</button></form>";
     page += "</section><small>Prototype: local HTTP without login, trusted LAN only. Do not port forward. Solid colors only; WLED segment 0 auto-snapshot/restore.</small></body></html>";
     web.send(200, "text/html; charset=utf-8", page);
 }
@@ -301,6 +405,13 @@ void doAction(const UiAction &a) {
       case ActionType::CelebrateBoth: setCelebrations(gd::CelebrationMode::Both); break;
       case ActionType::DelayMinus: setGoalDelay(-15); break;
       case ActionType::DelayPlus: setGoalDelay(15); break;
+      case ActionType::AudioToggle: toggleSound(); break;
+      case ActionType::AudioVolumeDown: adjustVolume(-10); break;
+      case ActionType::AudioVolumeUp: adjustVolume(10); break;
+      case ActionType::AudioAwayNext: cycleSound(false); break;
+      case ActionType::AudioHomeNext: cycleSound(true); break;
+      case ActionType::AudioPreviewAway: previewSound(false); break;
+      case ActionType::AudioPreviewHome: previewSound(true); break;
       default: break;
     }
     redraw();
@@ -338,6 +449,29 @@ void setupWeb() {
         else if (a=="plus") setGoalDelay(15);
         redirectHome();
     });
+    web.on("/sound",HTTP_POST,[]{
+        String action=web.arg("action");
+        if(action=="toggle")toggleSound();
+        else if(action=="down")adjustVolume(-10);
+        else if(action=="up")adjustVolume(10);
+        else if(action=="away")cycleSound(false);
+        else if(action=="home")cycleSound(true);
+        else if(action=="previewAway")previewSound(false);
+        else if(action=="previewHome")previewSound(true);
+        else if(action=="fileAway"||action=="fileHome"){
+            String name=web.arg("clip");
+            if(gd::validClipName(name.c_str())){
+                bool home=action=="fileHome";
+                gd::AudioChoice &choice=home?homeSound:awaySound;
+                choice.kind=gd::SoundKind::CustomWav;
+                strncpy(choice.clip,name.c_str(),sizeof(choice.clip)-1);
+                choice.clip[sizeof(choice.clip)-1]=0;
+                saveSoundForTeam(home);
+                banner("Custom sound: "+name);
+            } else banner("Invalid WAV name; uppercase A-Z, 0-9, - or _ only");
+        }
+        redirectHome();
+    });
     web.onNotFound([] { web.send(404, "text/plain", "Not found"); });
     web.begin();
     servicesStarted = true;
@@ -365,6 +499,7 @@ void initWiFi() {
     } else banner("Wi-Fi setup timed out. Reboot to retry.");
 }
 void pollTouch() {
+    if (touchSuspendedForSd) return;
     if (!touch.touched() || millis() - lastTap < 230) return;
     TS_Point p = touch.getPoint();
     // XPT2046 setRotation(1) reports a rotated raw space for landscape.
@@ -386,6 +521,7 @@ void setup() {
     touch.begin(touchSpi);
     touch.setRotation(1);
     wled.begin();
+    if(!audio.begin())Serial.println("Audio hardware setup: "+audio.lastError());
     loadGameSettings();
     if (wled.size()) uiState.selectedLed = 0;
     redraw();
@@ -404,13 +540,18 @@ void loop() {
         if (!nhlEverPolled || millis() - lastNhl >= NHL_INTERVAL_MS) refreshNhl();
         if (goals.armed() && (!pbpEverPolled || millis()-lastPbp>=PBP_INTERVAL_MS)) refreshPlayByPlay();
     }
+    restoreTouchBus();
     pollTouch();
     const bool online = WiFi.status() == WL_CONNECTED;
     const uint32_t started = reactions.startedCount(), restored = reactions.restoreCount();
     reactions.service(millis(), online);
     // Recovery must also work if NHL is unavailable or no WLED is selected.
     // See implementation: the driver should only depend on Wi-Fi for restore.
-    if (reactions.startedCount() != started) banner("GOAL! Team color active");
+    if (reactions.startedCount() != started) {
+        banner("GOAL! Team color active");
+        if(soundEnabled)trySound(reactions.lastGoalHome()?homeSound:awaySound);
+    }
+    if(reactions.restoreCount()!=restored)audio.stop();
     if (reactions.restoreCount() != restored) banner("Original lights restored");
     if (!uiState.message.isEmpty() && millis() - bannerSet > 6000) uiState.message = "";
     if (millis() - lastUi > UI_INTERVAL_MS) redraw();
