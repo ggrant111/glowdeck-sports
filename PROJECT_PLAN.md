@@ -293,3 +293,19 @@ With the CYD touchscreen still unavailable, we have added a **native Fire TV APK
 - [ ] **Endurance:** observe at least 3 live NHL games on a real Fire TV across relevant Fire OS versions; record API latency, duplicate/missed goals and service lifecycle failures.
 
 **Known caveats:** The Fire TV must remain powered and network-connected; OS memory/sleep restrictions may stop the service; Android 15+ has special limits for `dataSync` with newer target SDKs; debug APK signatures can differ between builds and require uninstall/reinstall. No 100% uptime guarantee or live-device validation has been claimed.
+
+## 12. Fire TV v0.3 — choose away, home, or both teams (2026-11-01)
+
+**Purpose:** Let the viewer select exactly whose goals trigger WLED celebrations for a chosen NHL game.
+
+- [x] GAME / EVENTS presents **AWAY**, **HOME**, and **BOTH TEAMS** options with actual team abbreviations.
+- [x] Celebration mode persists per NHL game ID, defaults to AWAY when the game has no saved preference, and cannot be changed while the monitor is armed.
+- [x] Foreground service receives the selected mode and qualifies unique NHL goal event ownership against the actual away/home team IDs.
+- [x] In BOTH mode, each eligible goal uses the **scoring team's** color; never treats an unknown owner/team ID as eligible.
+- [x] Retain eight-second WLED restoration, snapshot journal, single-scene gating, 20-second cooldown, 0–90s delay, baseline, duplicate-ID and ambiguous multi-goal suppression.
+- [x] Seven new pure-Java selection tests included; [GitHub Actions APK build and tests passed](https://github.com/ggrant111/glowdeck-sports/actions/runs/41377858153).
+- [x] [Sideloadable v0.3 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk) published without replacing the known-working v0.2 prerelease.
+- [ ] **Physical Fire TV acceptance:** test AWAY, HOME, then BOTH on a real NHL game, including colors and restoration, with YouTube TV playing.
+- [ ] **Rapid goals:** verify intentional busy/cooldown suppression and that mode changes require STOP then ARM, without stale event replays.
+
+**Release safety:** Debug signature can change between CI builds; users may need to uninstall prior test APK and configure WLED again. Continue testing only on noncritical lighting.
