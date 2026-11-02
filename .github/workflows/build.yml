@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        board: [cyd, cyd_ili9342]
+        board: [cyd, cyd_ili9342, cyd_st7789]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
