@@ -38,6 +38,7 @@ public final class GameDayService extends Service {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final GoalTracker tracker = new GoalTracker();
     private SharedPreferences monitor, lab;
+    private GameAudio sound;
     private long gameId, lastSuccessfulPoll, lastScoreCheck, lastEffectAt;
     private String away, home, ip;
     private boolean baselined, paused;
@@ -53,6 +54,7 @@ public final class GameDayService extends Service {
         super.onCreate();
         monitor = getSharedPreferences("gameday-monitor", MODE_PRIVATE);
         lab = getSharedPreferences("gameday-lab", MODE_PRIVATE);
+        sound=new GameAudio(this);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "GlowDeck GameDay monitoring", NotificationManager.IMPORTANCE_LOW);
             channel.setDescription("NHL game monitoring and WLED reactions; choose STOP to disarm");
@@ -212,6 +214,9 @@ public final class GameDayService extends Service {
         if (!lab.edit().putString("restoreJson", snapshot.toString()).putString("restoreIp", ip).commit())
             throw new Exception("Cannot journal prior WLED scene");
         WledApi.send(ip, WledApi.previewColor(NhlApi.teamColor(team),160));
+        // Audio is optional and runs on its own thread. Never delay WLED restoration.
+        try { if(sound!=null)sound.play(team,false); }
+        catch(Exception audioError){Log.w("GlowDeckAudio","Audio could not start",audioError);}
         publish("GOAL LIGHTS", team + " celebration active; restoring in 8 seconds");
         restoreTask = worker.schedule(() -> {
             restoreTask = null;
@@ -222,6 +227,7 @@ public final class GameDayService extends Service {
         },8,TimeUnit.SECONDS);
     }
     private void restoreSavedState() throws Exception {
+        if(sound!=null)sound.stop();
         if (!lab.contains("restoreJson")) return;
         String recoveryIp = lab.getString("restoreIp", "");
         String json = lab.getString("restoreJson", "");
@@ -235,6 +241,7 @@ public final class GameDayService extends Service {
     }
     private void shutDown(String why) {
         stopping = true;
+        if(sound!=null)sound.stop();
         cancelGoal();
         if (pollTask != null) pollTask.cancel(false);
         if (restoreTask != null) { restoreTask.cancel(false); restoreTask = null; }
@@ -251,6 +258,7 @@ public final class GameDayService extends Service {
     private void failAndStop(String reason) { shutDown(reason); }
     private static String message(Exception ex) { return ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(); }
     @Override public void onDestroy() {
+        if(sound!=null)sound.stop();
         running = false; stopping = false;
         cancelGoal();
         if (pollTask != null) pollTask.cancel(false);
