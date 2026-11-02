@@ -4,7 +4,7 @@ A **native Fire TV / Android TV test application** for testing the public NHL AP
 
 ## Download the APK
 
-**Latest [Fire TV test release](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test)** (once CI finishes). Download the asset `GlowDeck-GameDay-FireTV-v0.1.apk`, not the source ZIP. Alternatively visit **GitHub Actions → Fire TV test APK → most recent successful run → Artifacts**.
+**[Download Fire TV test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.1.0-test/GlowDeck-GameDay-FireTV-v0.1.apk)** from the [verified prerelease](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). Download the `.apk`, not the source ZIP. Build/tests: [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341). Alternatively visit **GitHub Actions → Fire TV test APK → most recent successful run → Artifacts**.
 
 Build from source (Android Studio): open this `firetv/` directory as a standalone Android project. Requires Android SDK 35, JDK 17, Android Gradle Plugin 8.5.2. Use `gradle :app:assembleDebug`; the APK is at `app/build/outputs/apk/debug/app-debug.apk`. Native tests `gradle :app:testDebugUnitTest`.
 

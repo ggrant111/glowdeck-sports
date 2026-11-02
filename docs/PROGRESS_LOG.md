@@ -54,6 +54,12 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Verified:** [GitHub Actions local bridge workflow 41370774438](https://github.com/ggrant111/glowdeck-sports/actions/runs/41370774438) passed all 9 Python offline tests. A local smoke run served the HTML interface, rejected unauthorized API access (HTTP 403), and accepted a valid access code for GET `/api/status`.
 - **Still pending:** Test on user's iPhone/home computer and actual WLED LAN; local test had no real WLED contact.
 
+### 2026-11-01 — Fire TV native NHL/WLED test APK created
+
+- **Changed:** Added `firetv/` standalone Android TV / Fire TV app (D-pad UI, NHL scores and play-by-play, WLED IP pairing and JSON API, solid team-color previews with restore journal, optional explicit real-goal arming). Added .github/workflows/firetv-apk.yml automated Android build, JVM tests and prerelease APK upload.
+- **Verified:** Pure Java tests compiled/executed locally; [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341) passed Android unit testing, APK compilation, checksum and release publishing. Debug APK is a true signed sideloadable package. No real Fire TV / WLED hardware was available to validate behavior.
+- **Next actions:** Sideload the APK on Fire TV, confirm TV remote focus, NHL connection, direct WLED GET/POST, scene restoration, and optional live-goal event test. Record evidence in validation log.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

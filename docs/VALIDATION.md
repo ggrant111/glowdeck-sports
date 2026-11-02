@@ -35,3 +35,10 @@
 - PASS: [CI run 41368433335](https://github.com/ggrant111/glowdeck-sports/actions/runs/41368433335) — 17/17 native Unity cases, ESP32 PlatformIO compile and firmware artifact upload.
 - PASS: desktop v0.2 mock goal cycle, including restore.
 - NOT RUN: CYD display, WLAN, actual NHL response and real WLED state capture/restore. See [v0.2 validation](VALIDATION_V02.md).
+
+## Fire TV test APK v0.1 — separate Android application (2026-11-01)
+
+- PASS: Java-only smoke checks for GoalTracker initial baseline, deduplication, one new goal and RFC1918 IP restrictions.
+- PASS: [GitHub Actions run 41372267341](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341) — Android SDK, native JVM unit tests, debug APK compile, artifact + release steps succeeded.
+- NOT RUN: Fire TV launcher/D-pad test, actual NHL HTTPS requests from Fire OS, actual WLED LAN communications, effect restoration while interrupted, real-live-game reactions.
+- The APK is a temporary debug-signed prerelease. Full hardware acceptance required before making claims about live event or WLED reliability.

@@ -4,6 +4,8 @@
 
 Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
 
+**NEW: [GlowDeck GameDay Fire TV APK](firetv/README.md)** — a native, D-pad-controlled Fire TV test console. Select real NHL games, inspect play-by-play, pair a local WLED IP, preview team colors with restore, and optionally arm safe new-goal reactions. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). This is a **separate test platform**; it does not replace the ESP32 firmware.
+
 ## Try v0.2 without the ESP32
 
 **[Launch the hosted, mobile-friendly simulator](https://glowdeck-gameday-simulator.lovable.app)** — open directly in Safari or any full browser, including on iPhone. No login or hardware required. The hosted simulator uses fake NHL scores, fake WLED devices, local in-browser controls, a goal timer, and a mock event log. It does **not** drive real lights or run the ESP32 firmware. The source for the browser demo in this repository is `simulator/web/index.html`; that self-contained HTML file works in a regular JavaScript-capable browser but **may show a blank device preview when opened in iOS/ChatGPT/GitHub attachment viewers that block inline JavaScript**. Use the hosted link instead.

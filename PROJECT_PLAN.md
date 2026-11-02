@@ -251,3 +251,19 @@ The touchscreen has not arrived; Sprint 1/2 **physical acceptance remains blocke
 - [ ] When the CYD arrives, use compiled v0.2 firmware and the original Sprint 1/2 board acceptance matrices.
 
 **Safety**: Never expose the bridge port to the public internet. Use an explicit private WLED IP, local access token, brightness cap, snapshot before preview, restore on timeout, and recovery journal after interruption. Initial live scoring observations are not proof of automatic goal-event identity; do not graduate to autonomous lights until event IDs and deduplication are verified.
+
+## 10. Fire TV hardware-free NHL → WLED integration test console (2026-11-01)
+
+With the CYD touchscreen still unavailable, we have added a **native Fire TV APK**, separate from the ESP32 firmware, so a real TV and WLED can test most of the NHL/network/event and lighting integration path.
+
+- [x] Native Android Java Fire TV application under [firetv/](firetv/README.md), installable via ADB and navigable with remote D-pad.
+- [x] NHL score list from public `/v1/score/now` and play-by-play from `/v1/gamecenter/{gameId}/play-by-play`.
+- [x] Manual private-LAN WLED pairing via IPv4 and name/version/status read from `/json/info`.
+- [x] Read WLED state and preview home/away team colors for eight seconds, with a crash-recovery restore journal.
+- [x] Opt-in live goal monitor with event-ID baseline, favorite-team selection, 0–90-second TV delay, one scene at a time, cooldown, and foreground-only arming. Default **DISARMED**; never arm automatically at boot.
+- [x] Native Java goal-ID/dedupe and address validation tests compiled locally; Android GitHub Actions compiled debug APK and passed unit tests. [First successful APK CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372267341).
+- [ ] Download and sideload on an actual Fire TV, validate D-pad navigation and the real NHL API response.
+- [ ] Confirm WLED connection and 8-second state restore on a noncritical LED controller; test manual restore after simulated outage.
+- [ ] Observe three real NHL games for new goal-ID detection, timing, disarm reliability and false positive suppression; log results before considering production automatic lights.
+
+**Test APK:** [GitHub prerelease](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). **Warning:** CI debug signing is ephemeral, so a future replacement APK can require uninstall/reinstall. Fire TV app foreground/lifecycle tests are **not** a substitute for ESP32 hardware bring-up.
