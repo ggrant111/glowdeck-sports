@@ -21,7 +21,7 @@ SET_LOOP_TASK_STACK_SIZE(16 * 1024);
 namespace {
 constexpr uint32_t NHL_INTERVAL_MS = 60000;
 constexpr uint32_t PBP_INTERVAL_MS = 25000;
-constexpr uint32_t UI_INTERVAL_MS = 3000;
+constexpr uint32_t UI_INTERVAL_MS = 1000;
 constexpr int TOUCH_CS = 33, TOUCH_IRQ = 36;
 constexpr int TOUCH_CLK = 25, TOUCH_MISO = 39, TOUCH_MOSI = 32;
 // Calibrate these constants if touch is mirrored/offset on your particular CYD board.
@@ -88,7 +88,8 @@ bool trySound(const gd::AudioChoice &choice) {
 }
 
 WebServer web(80);
-gd::Scoreboard scores;
+gd::Scoreboard scores,todayScores;
+bool todayOnline=false;
 gd::Game trackedGame;
 uint8_t scheduleDay=0;
 bool hour24=true;
@@ -110,6 +111,7 @@ void banner(const String &s) {
     Serial.println(String("GameDay: ") + s);
 }
 void redraw() {
+    uiState.today=&todayScores;uiState.todayOnline=todayOnline && WiFi.status()==WL_CONNECTED;
     uiState.hour24=hour24;
     uiState.tracked=selectedGame();uiState.scheduleDay=scheduleDay;uiState.resumeEnabled=resumeEnabled;
     uiState.ddp=wled.ddpEnabled;uiState.effectSelection=effectSelection;uiState.effectMask=effectMask;
@@ -369,7 +371,7 @@ String followingHtml(){
 }
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
-body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}nav{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:0;background:#0a1418;padding:12px 0}nav a{padding:12px;color:#eaf5f5;text-decoration:none;border-radius:8px;background:#182a30}nav a[aria-current]{background:#31837a}a{color:#57bdb5}select{padding:10px;max-width:100%}button:focus-visible,a:focus-visible{outline:3px solid #f4c95d}footer{padding:24px 0}</style></head><body><h1>GlowDeck GameDay v0.7</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}nav{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:0;background:#0a1418;padding:12px 0}nav a{padding:12px;color:#eaf5f5;text-decoration:none;border-radius:8px;background:#182a30}nav a[aria-current]{background:#31837a}a{color:#57bdb5}select{padding:10px;max-width:100%}button:focus-visible,a:focus-visible{outline:3px solid #f4c95d}footer{padding:24px 0}</style></head><body><h1>GlowDeck GameDay v0.8</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
     const String current=webPageName();
     page+="<nav aria-label='Main navigation'>";
     const char *pages[]={"games","following","lights","sound","setup"};
@@ -471,7 +473,7 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
     page+="</section>";
     }
     page.replace("</form>","<input type='hidden' name='return' value='"+current+"'></form>");
-    page+="<footer>Local control · GlowDeck v0.7 · <a href='/?page=setup'>Connection and preferences</a></footer></body></html>";
+    page+="<footer>Local control · GlowDeck v0.8 · <a href='/?page=setup'>Connection and preferences</a></footer></body></html>";
     web.send(200, "text/html; charset=utf-8", page);
 }
 void refreshNhl() {
@@ -480,6 +482,7 @@ void refreshNhl() {
     static gd::Scoreboard incoming;
     String error;
     bool ok = nhl.poll(incoming, error,scheduleDay);
+    if(scheduleDay==0){todayOnline=ok;if(ok)todayScores=incoming;}else{static gd::Scoreboard daily;String dailyError;todayOnline=nhl.poll(daily,dailyError,0);if(todayOnline)todayScores=daily;}
     lastNhl = millis();
     nhlEverPolled = true;
     Serial.printf("NHL memory: stack minimum free=%u bytes, heap free=%u bytes\n",
@@ -582,6 +585,7 @@ void doAction(const UiAction &a) {
       case ActionType::AudioVolumeUp: adjustVolume(10); break;
       case ActionType::AudioAwayNext: cycleSound(false); break;
       case ActionType::AudioHomeNext: cycleSound(true); break;
+      case ActionType::ShowDisplay: ui.setPage(Page::Display);break;
       case ActionType::FollowAdd: followSelected();break;
       case ActionType::FollowStart: startFollowing();break;
       case ActionType::FollowStop: following.stop();audio.stop();break;
@@ -770,7 +774,7 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.7.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.8.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.following=&following;
     uiState.scoreboard = &scores;
     uiState.leds = &wled;

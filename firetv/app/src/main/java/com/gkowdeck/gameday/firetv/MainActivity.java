@@ -46,11 +46,15 @@ public final class MainActivity extends Activity {
     private LanSoundServer lanSounds;
     private String importingTeam="UTA";
     private static final int IMPORT_WAV=910;
+    private NhlApi.Board todayBoard;
+    private boolean todayOnline=false;
+    private long displaySlot=-1;
+    private final java.util.Map<String,android.graphics.Bitmap> logos=new java.util.HashMap<>();
     private NhlApi.Board board; private NhlApi.Game selected;
     private final List<String> lines=new ArrayList<>();
     private List<NhlApi.Play> recentPlays=new ArrayList<>();
     private int scheduleDay=0;
-    private int page=0,delaySec=0,celebrationMode=CelebrationSelection.AWAY;private String serviceState="";
+    private int page=6,delaySec=0,celebrationMode=CelebrationSelection.AWAY;private String serviceState="";
     private boolean wledConnected=false,scoreBusy=false,pbpBusy=false,resumed=false,previewActive=false,restoreBusy=false;
     private String wledIp="192.168.1.71",wledName="Not connected",fetchStatus="Not checked",lastScoreAt="Never";
     private long lastScoresMs=0,lastPbpMs=0;
@@ -59,6 +63,7 @@ public final class MainActivity extends Activity {
     private final Runnable tick=new Runnable(){public void run(){
         if(!resumed)return;
         long now=System.currentTimeMillis();
+        if(page==6 && android.os.SystemClock.elapsedRealtime()/10000!=displaySlot)render();
         if(now-lastScoresMs>60000)refreshScores(false);
         String current=monitorStatus()+FollowService.status+java.util.Arrays.toString(FollowService.gameStatus);
         if(!current.equals(serviceState)){serviceState=current;render();}
@@ -82,7 +87,7 @@ public final class MainActivity extends Activity {
         }));
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
-        log("GameDay Fire TV v0.7.0 started. Local iPhone audio management is available.");
+        log("GameDay Fire TV v0.8.0 started. Local iPhone audio management is available.");
         buildShell();render();
         if(FollowService.hasRecovery(this)&&!FollowService.isBusy())followCommand(FollowService.RECOVER);
         if(hasJournal() && !GameDayService.isRunning()){log("Found interrupted WLED preview; attempting restore before new commands.");restoreWled();}
@@ -153,7 +158,34 @@ public final class MainActivity extends Activity {
         c.addView(txt(title,20,WHITE,true));c.addView(txt(detail,16,MUTED,false));}
     private void heading(String title){body.addView(txt(title,24,WHITE,true));}
     private void subtitle(String title){body.addView(txt(title,15,MUTED,false));}
+    private void loadLogos(){
+        if(!logos.isEmpty())return;
+        try(java.io.BufferedReader reader=new java.io.BufferedReader(new java.io.InputStreamReader(getAssets().open("team-logos.txt")))){
+            String line;while((line=reader.readLine())!=null){String[] parts=line.split("\\|");int[] colors=new int[16],pixels=new int[1024];
+                for(int i=0;i<16;i++){int c=Integer.parseInt(parts[1].substring(i*4,i*4+4),16);colors[i]=android.graphics.Color.rgb(((c>>11)&31)*255/31,((c>>5)&63)*255/63,(c&31)*255/31);}
+                for(int i=0;i<1024;i++)pixels[i]=colors[Character.digit(parts[2].charAt(i),16)];
+                logos.put(parts[0],android.graphics.Bitmap.createBitmap(pixels,32,32,android.graphics.Bitmap.Config.RGB_565));
+            }
+        }catch(Exception e){log("Logo cache unavailable: "+e.getMessage());}
+    }
+    private void exitDisplay(){page=0;buildShell();render();}
+    @Override public void onBackPressed(){if(page==6){exitDisplay();return;}page=6;render();}
+    private void displayTeam(LinearLayout row,String team){
+        LinearLayout col=column();col.setGravity(Gravity.CENTER);row.addView(col,new LinearLayout.LayoutParams(0,-2,1));
+        android.widget.ImageView image=new android.widget.ImageView(this);image.setContentDescription(team+" logo");image.setImageBitmap(logos.get(team));image.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);col.addView(image,new LinearLayout.LayoutParams(dp(112),dp(112)));col.addView(txt(team,36,WHITE,true));
+    }
+    private void renderDisplay(){
+        if(lanSounds!=null)lanSounds.stop();loadLogos();root.removeAllViews();displaySlot=android.os.SystemClock.elapsedRealtime()/10000;
+        LinearLayout top=row();root.addView(top);Button gear=action("⚙",false,this::exitDisplay);gear.setContentDescription("Open settings and controls");top.addView(gear);top.addView(txt("TODAY'S GAMES",22,WHITE,true));gear.requestFocus();
+        java.util.List<NhlApi.Game> games=new java.util.ArrayList<>();if(todayBoard!=null)for(NhlApi.Game g:todayBoard.games)if(g.live()||g.upcoming())games.add(g);
+        if(games.isEmpty()){root.addView(txt(todayOnline?"No upcoming or live games today":"Waiting for NHL connection",28,MUTED,false));return;}
+        int index=(int)(displaySlot%games.size());NhlApi.Game g=games.get(index);
+        LinearLayout center=row();center.setGravity(Gravity.CENTER);root.addView(center,new LinearLayout.LayoutParams(-1,0,1));displayTeam(center,g.away);center.addView(txt(g.score(),52,WHITE,true));displayTeam(center,g.home);
+        TextView detail=txt(g.status(),28,WHITE,true);detail.setGravity(Gravity.CENTER);root.addView(detail);
+        TextView meta=txt((todayOnline?"NHL feed • ":"STALE — reconnecting • ")+(index+1)+" / "+games.size()+" • Updates every 60s • Gear for controls",16,todayOnline?TEAL:GOLD,false);meta.setGravity(Gravity.CENTER);root.addView(meta);
+    }
     private void render(){
+        if(page==6){if(root!=null)renderDisplay();return;}
         if(root==null)return;
         if(lanSounds!=null){
             if(resumed&&page==3)lanSounds.start();
@@ -163,7 +195,7 @@ public final class MainActivity extends Activity {
         if(focus!=null&&focus.getTag() instanceof String)focusedTag=(String)focus.getTag();
         nav.removeAllViews();body.removeAllViews();
         status.setText("NHL: "+fetchStatus+"   |   MONITOR: "+monitorStatus());
-        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","SOUND","LOG / HELP","FOLLOWING"};
+        String[] names={"NHL SCORES","GAME / EVENTS","WLED LIGHTS","SOUND","LOG / HELP","FOLLOWING","DISPLAY"};
         for(int i=0;i<names.length;i++){final int idx=i;Button b=action(names[i],page==i,()->{page=idx;render();});
             LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(57),1);p.setMargins(0,0,dp(9),0);nav.addView(b,p);}
         switch(page){case 0:pageScores();break;case 1:pageGame();break;case 2:pageLights();break;case 3:pageAudio();break;case 5:pageFollowing();break;default:pageLog();break;}
@@ -420,12 +452,13 @@ public final class MainActivity extends Activity {
     });}
     private void refreshScores(boolean manual){if(scoreBusy)return;final int requestedDay=scheduleDay;scoreBusy=true;lastScoresMs=System.currentTimeMillis();fetchStatus="fetching...";render();
         io.execute(()->{
-            try{NhlApi.Board incoming=NhlApi.scores(requestedDay);ui.post(()->{
+            try{NhlApi.Board incoming=NhlApi.scores(requestedDay);NhlApi.Board daily=requestedDay==0?incoming:NhlApi.scores(0);ui.post(()->{
+                todayBoard=daily;todayOnline=true;
                 scoreBusy=false;if(scheduleDay!=requestedDay){refreshScores(true);return;}board=incoming;fetchStatus="online";lastScoreAt=incoming.date+" • "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date());
                 if(selected!=null){for(NhlApi.Game g:incoming.games)if(g.id==selected.id){selected=g;break;}}
                 if(manual)log("NHL score API OK: "+incoming.games.size()+" games for "+incoming.date);
                 render();
-            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;if(scheduleDay!=requestedDay){refreshScores(true);return;}fetchStatus="error";log("NHL scores ERROR: "+err);render();});}
+            });}catch(Exception e){String err=e.getMessage();ui.post(()->{scoreBusy=false;if(scheduleDay!=requestedDay){refreshScores(true);return;}todayOnline=false;fetchStatus="error";log("NHL scores ERROR: "+err);render();});}
         });
     }
     private String currentIp(){return ipEntry==null?wledIp:ipEntry.getText().toString().trim();}

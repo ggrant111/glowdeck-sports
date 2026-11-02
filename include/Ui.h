@@ -7,6 +7,8 @@
 
 struct UiState {
     const FollowManager *following=nullptr;
+    const gd::Scoreboard *today=nullptr;
+    bool todayOnline=false;
     const gd::Scoreboard *scoreboard = nullptr;
     const WledClient *leds = nullptr;
     uint32_t selectedGameId = 0;
@@ -39,9 +41,9 @@ struct UiState {
     String message;
 };
 
-enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects, Following };
+enum class Page : uint8_t { Scores, GameDay, Lights, Setup, Audio, Effects, Following, Display };
 enum class ActionType : uint8_t {
-    FollowAdd, FollowStart, FollowStop, PreviousLeds, NextLeds, ScheduleDay, ToggleResume,
+    ShowDisplay, FollowAdd, FollowStart, FollowStop, PreviousLeds, NextLeds, ScheduleDay, ToggleResume,
     None, SelectGame, SelectLed, PreviousGames, NextGames, ScanLeds,
     TeamAway, TeamHome, PowerOff, RefreshNhl, ToggleArm,
     CelebrateAway, CelebrateHome, CelebrateBoth, DelayMinus, DelayPlus,
@@ -67,7 +69,7 @@ private:
     String lastRenderKey_;
     bool rendered_ = false;
     String renderKey(const UiState &state) const;
-    Page page_ = Page::Scores;
+    Page page_ = Page::Display;
     void header(const UiState &state, const char *title);
     void footer();
     void scores(const UiState &state);
@@ -75,6 +77,8 @@ private:
     void lights(const UiState &state);
     void setup(const UiState &state);
     void audio(const UiState &state);
+    void display(const UiState &state);
+    void logo(const char *team,int x,int y);
     void effects(const UiState &state);
     void button(int x, int y, int w, int h, const String &label, uint16_t color);
 };

@@ -10,7 +10,7 @@ final class NhlApi {
     static String clockPattern(){return hour24?"HH:mm":"h:mm a";}
     static final String ROOT="https://api-web.nhle.com/v1";
     static final class Game {
-        long id;String away,home,state,clock,startTime="";int awayId,homeId,awayScore,homeScore,period;
+        long id;String away,home,state,clock,periodType="",startTime="";int awayId,homeId,awayScore,homeScore,period;
         boolean live(){return "LIVE".equals(state)||"CRIT".equals(state);}
         boolean upcoming(){return "FUT".equals(state)||"PRE".equals(state)||"PPD".equals(state);}
         String localStart(){
@@ -21,7 +21,7 @@ final class NhlApi {
             }catch(Exception e){return "Start time TBD";}
         }
         String status(){
-            if(live())return "LIVE P"+period+(clock.isEmpty()?"":"  "+clock);
+            if(live())return "LIVE "+("OT".equals(periodType)?"OT":"SO".equals(periodType)?"SO":"P"+period)+(clock.isEmpty()?"":"  "+clock);
             if("OFF".equals(state)||"FINAL".equals(state))return "FINAL";
             if("FUT".equals(state)||"PRE".equals(state))return "UPCOMING • "+localStart();
             return state;
@@ -48,7 +48,7 @@ final class NhlApi {
             g.awayId=a.optInt("id",0);g.homeId=h.optInt("id",0);
             g.awayScore=a.optInt("score",0);g.homeScore=h.optInt("score",0);
             g.startTime=o.optString("startTimeUTC","");
-            g.state=o.optString("gameScheduleState","");if(!"PPD".equals(g.state)&&!"CNCL".equals(g.state))g.state=o.optString("gameState","UNKNOWN");g.period=o.optInt("period",0);
+            g.state=o.optString("gameScheduleState","");if(!"PPD".equals(g.state)&&!"CNCL".equals(g.state))g.state=o.optString("gameState","UNKNOWN");g.period=o.optInt("period",0);JSONObject descriptor=o.optJSONObject("periodDescriptor");if(descriptor!=null){g.period=descriptor.optInt("number",g.period);g.periodType=descriptor.optString("periodType","");}
             JSONObject clock=o.optJSONObject("clock");g.clock=clock==null?"":clock.optString("timeRemaining","");
             board.games.add(g);
         }

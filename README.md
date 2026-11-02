@@ -1,3 +1,7 @@
+## v0.8 — game display
+
+Both devices boot into a display cycling today’s upcoming/live games about every 10 seconds. Tap the top-left gear (Fire TV: select it with the remote) for controls. ESP32: SETUP → SHOW returns to display; Fire TV: DISPLAY tab. Scores and clock are NHL snapshots refreshed about every 60 seconds, not a locally running countdown. Logos are bundled for offline use.
+
 ## v0.7 — page navigation
 
 Open the ESP32 local address and use Games, Following, Lights, Sound or Setup. Saves return to the current page. On Fire TV, use the new FOLLOWING tab for multi-game controls. Monitoring settings from v0.6 are retained.

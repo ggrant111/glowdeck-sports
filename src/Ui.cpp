@@ -1,4 +1,5 @@
 #include "Ui.h"
+#include "TeamLogos.h"
 #include <time.h>
 #include "ClockFormat.h"
 namespace {
@@ -153,6 +154,7 @@ void Ui::lights(const UiState &state) {
     button(241, 165, 75, 33, "SCAN", CARD);
 }
 void Ui::setup(const UiState &state) {
+    button(185,3,70,28,"SHOW",TEAL);
     tft_.setTextColor(FG, BG);
     tft_.drawString("Wi-Fi", 9, 41, 2);
     tft_.setTextColor(MUTED, BG);
@@ -249,7 +251,35 @@ String Ui::renderKey(const UiState &s) const {
     }
     return key;
 }
+void Ui::logo(const char *team,int x,int y){
+    for(auto &entry:teamLogos)if(!strcmp(entry[0],team)){
+        uint16_t palette[16];for(int i=0;i<16;++i){char hex[5];memcpy(hex,entry[1]+i*4,4);hex[4]=0;palette[i]=strtoul(hex,nullptr,16);}
+        for(int n=0;n<1024;++n){char c=entry[2][n];int v=c<='9'?c-'0':c-'a'+10;tft_.fillRect(x+(n%32)*2,y+(n/32)*2,2,2,palette[v]);}return;
+    }
+}
+void Ui::display(const UiState &s){
+    const gd::Game *games[gd::MAX_GAMES];unsigned count=0;
+    if(s.today)for(unsigned i=0;i<s.today->count;++i){auto &g=s.today->games[i];if(gd::isLive(g)||gd::isUpcoming(g))games[count++]=&g;}
+    unsigned index=count?(millis()/10000)%count:0;
+    String key="display"+String(index)+String(s.todayOnline);
+    if(s.today)key+=s.today->date;
+    if(count){const auto &g=*games[index];key+=String(g.id)+g.state+g.periodType+g.clock+g.startTime+String(g.period)+String(g.awayScore)+":"+String(g.homeScore);}
+    if(rendered_&&key==lastRenderKey_)return;rendered_=true;lastRenderKey_=key;tft_.fillScreen(BG);
+    // Gear hit area is 44x40; matches the existing landscape touch mapping.
+    tft_.drawCircle(23,20,10,FG);tft_.drawCircle(23,20,4,FG);
+    tft_.fillRect(20,6,6,4,FG);
+    tft_.fillRect(20,30,6,4,FG);tft_.fillRect(9,17,4,6,FG);tft_.fillRect(33,17,4,6,FG);
+    tft_.setTextColor(FG,BG);tft_.drawCentreString("TODAY'S GAMES",180,12,2);
+    if(!count){tft_.drawCentreString(s.todayOnline?"No upcoming or live games":"Waiting for NHL connection",160,100,2);return;}
+    const auto &g=*games[index];logo(g.away,40,47);logo(g.home,216,47);
+    tft_.drawCentreString(g.away,72,119,4);tft_.drawCentreString(g.home,248,119,4);
+    tft_.drawCentreString(gd::isLive(g)?String(g.awayScore)+" : "+g.homeScore:"VS",160,76,4);
+    tft_.drawCentreString(gd::isLive(g)?(String(g.periodType)=="OT"?String("OT"):String(g.periodType)=="SO"?String("SO"):String("P")+g.period)+"  "+g.clock:localStart(g.startTime,s.hour24),160,162,4);
+    tft_.setTextColor(s.todayOnline?TEAL:GOLD,BG);tft_.drawCentreString(s.todayOnline?String(gd::gameStateText(g)):String("STALE - reconnecting"),160,198,2);
+    tft_.drawCentreString(String(index+1)+" / "+count+"   |   Tap gear for controls",160,222,1);
+}
 void Ui::draw(const UiState &state) {
+    if(page_==Page::Display){display(state);return;}
     String key = renderKey(state);
     if(page_==Page::Following && state.following){key+=state.following->message+String(state.following->running)+String(state.following->count);for(unsigned i=0;i<state.following->count;++i){auto &f=state.following->games[i];key+=String(f.game.id)+String(f.display)+f.status+String(f.game.awayScore)+String(f.game.homeScore);}}
     if (rendered_ && key == lastRenderKey_) return;
@@ -281,6 +311,8 @@ void Ui::draw(const UiState &state) {
     }
 }
 UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
+    if(page_==Page::Display){if(x<48&&y<42){page_=Page::Setup;rendered_=false;}return {};}
+    if(page_==Page::Setup&&x>=185&&x<255&&y<34)return {ActionType::ShowDisplay};
     if (y >= FOOTER_Y) {
         if (x < 64) page_ = Page::Scores;
         else if (x < 128) page_ = Page::GameDay;

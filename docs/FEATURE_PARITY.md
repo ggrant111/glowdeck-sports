@@ -143,3 +143,9 @@ ESP32 detailed settings are on its existing local web page, with follow/start/st
 ## v0.7 navigation
 
 ESP32 local HTTP now serves Games, Following, Lights, Sound and Setup as separately rendered pages (`/?page=games`, etc.). Only the selected page is constructed. Forms carry a whitelisted return destination, so saving does not return users to the top of a combined control panel. Unknown destinations fall back to Games. Fire TV now separates Following from Game / Events in its native navigation; its LAN audio-upload service remains audio-specific. Monitoring, output routing, touch rotation and clock formatting are unchanged. The full-screen game carousel remains v0.8.
+
+## v0.8 display contract
+
+Both controllers default to a read-only carousel of today's upcoming/live games, rotating about every 10 seconds. Separate today data prevents schedule browsing from changing the carousel. Bundled 32px/16-color NHL logos come from `https://assets.nhle.com/logos/nhl/svg/{TEAM}_light.svg`; team marks belong to their owners. Upcoming games show local start time, live games show scores, period/OT/SO and the last NHL clock sample. Feed refresh is approximately 60 seconds plus network latency. Failed requests preserve the previous board with a stale label. Empty days have a no-games message. Gear opens controls; display never selects, arms or modifies game outputs. The existing display rotation and touch calibration remain unchanged.
+
+Hardware acceptance: check boot display, all logo pairs, next game after ten seconds, gear touch/remote focus, return to display, future-day browsing isolation, 12/24h starts, stale network state, and goals/sound/restoration continuing while either display or settings is visible. Logo files are intentionally compact because ESP32 application flash is limited.

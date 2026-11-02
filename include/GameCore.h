@@ -35,6 +35,7 @@ struct Game {
     char away[5] = "";
     char home[5] = "";
     char state[12] = "";
+    char periodType[5] = "";
     char clock[14] = "";
     char startTime[25] = "";
     uint8_t awayScore = 0;

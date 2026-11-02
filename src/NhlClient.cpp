@@ -57,6 +57,8 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error, uint8_t dayOffset) {
     filter["games"][0]["homeTeam"]["abbrev"] = true;
     filter["games"][0]["homeTeam"]["score"] = true;
     filter["games"][0]["period"] = true;
+    filter["games"][0]["periodDescriptor"]["number"] = true;
+    filter["games"][0]["periodDescriptor"]["periodType"] = true;
     filter["games"][0]["clock"]["timeRemaining"] = true;
     // 16 games x small filtered entries, 16 KiB sufficient for ordinary NHL slate.
     if (filter.overflowed()) { error="NHL filter overflow"; http.end(); return false; }
@@ -90,7 +92,8 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error, uint8_t dayOffset) {
         copy(game.clock, sizeof(game.clock), item["clock"]["timeRemaining"] | "");
         game.awayScore = (uint8_t)(item["awayTeam"]["score"] | 0);
         game.homeScore = (uint8_t)(item["homeTeam"]["score"] | 0);
-        game.period = (uint8_t)(item["period"] | 0);
+        game.period = item["periodDescriptor"]["number"] | (item["period"] | 0);
+        copy(game.periodType,sizeof(game.periodType),item["periodDescriptor"]["periodType"]|"");
         ++temp.count;
     }
     temp.valid = true;
