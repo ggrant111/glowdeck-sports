@@ -121,6 +121,7 @@ public final class FollowService extends Service {
     private void tick(){
         try{
             if(stopRequested&&running)stopMonitoring();
+            if(!getSharedPreferences("gameday-audio",0).getBoolean("enabled",false)){audio.stop();sounds.clear();}
             serviceTargets();
             if(running&&!stopRequested){
                 if(now()>=nextPoll){nextPoll=now()+6250;poll(cursor++%config.games.size());}
@@ -140,6 +141,6 @@ public final class FollowService extends Service {
             if(!running&&!hasRecovery(this)){busy=false;stopForeground(true);stopSelf();}
         }catch(Exception ex){publish("Follow error: "+ex.getMessage());}
     }
-    @Override public void onDestroy(){running=false;busy=false;for(Target t:targets)t.stream.close();if(audio!=null)audio.stop();worker.shutdownNow();super.onDestroy();}
+    @Override public void onDestroy(){stopRequested=true;running=false;busy=false;for(Target t:targets)t.stream.close();if(audio!=null)audio.stop();worker.shutdownNow();super.onDestroy();}
     @Override public IBinder onBind(Intent i){return null;}
 }

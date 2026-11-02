@@ -129,7 +129,13 @@ def main():
             "All platforms expose event effect previews")
     require('stream_.stop()' in read("src/WledClient.cpp") and 'ddp.close()' in fire,
             "Both physical platforms stop UDP before journal restoration")
-    print("ALL CHECKS PASSED: cross-platform parity contract v0.5.0")
+    following = read("src/FollowManager.cpp")
+    follow_java = read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/FollowService.java")
+    require("FOLLOW_LIMIT=4, TARGET_LIMIT=2" in read("include/ReactionQueue.h") and "LIMIT=4" in read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/FollowConfig.java"), "v0.6 bounded multi-game following exists on both controllers")
+    require("6250" in following and "6250" in follow_java, "v0.6 round-robin NHL polling on both controllers")
+    require("20000" in read("include/ReactionQueue.h") and "20000" in read("firetv/app/src/main/java/com/gkowdeck/gameday/firetv/FollowQueue.java"), "v0.6 waiting events expire on both controllers")
+    require('setJournalNamespace("gd-follow0")' in following and 'setJournalNamespace("gd-follow1")' in following and '"journal"+index' in follow_java, "v0.6 targets have separate restoration journals")
+    print("ALL CHECKS PASSED: cross-platform parity contract v0.6.0")
 
 
 if __name__ == "__main__":

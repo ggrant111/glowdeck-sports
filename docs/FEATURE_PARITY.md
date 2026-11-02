@@ -133,3 +133,9 @@ ESP32/Fire TV retain event masks, team mode, delay, no-replay baselines and scen
 restoration. See `docs/V052_FIELD_TEST.md` for scope and hardware acceptance.
 Automated validation is recorded with the release builds; real-device acceptance
 is pending. Hosted Lovable simulator remains a separate deployment.
+
+## v0.6 multi-game contract
+
+ESP32 and Fire TV now support four followed games, with independent display/sound settings and A/B/both/none routing to two WLED targets. Each game owns its baseline, delay and cooldown; each target owns its priority queue and original-state restoration journal. Queues hold eight events, expire waiting events after 20 seconds, and never interrupt the current eight-second reaction. Failed restoration blocks further effects on that target until recovery succeeds. Saved preferences do not re-arm multi-game monitoring after reboot.
+
+ESP32 detailed settings are on its existing local web page, with follow/start/stop/status on the touchscreen. Fire TV exposes these controls under GAME. Sound is queued independently of busy lighting targets. See [setup, exact rules, and hardware acceptance checks](V0.6-FOLLOWING.md). Browser simulator remains a single-game demonstration; its current effect regression tests still run, but it does not model v0.6 multi-game routing. The paged web redesign and full-screen carousel are subsequent releases.

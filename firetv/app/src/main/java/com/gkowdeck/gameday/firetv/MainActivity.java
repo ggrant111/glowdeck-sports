@@ -337,7 +337,7 @@ public final class MainActivity extends Activity {
         LinearLayout row=row();
         buttons(row,
             action("NEXT SOUND",false,()->{audioPrefs.edit().putInt("kind."+team,(current+1)%5).apply();render();}),
-            action("▶ PREVIEW",true,()->{if(gameAudio.play(team,true))log("Sound preview "+team);
+            action("▶ PREVIEW",true,()->{if(denyChangeWhileMonitoring())return;if(gameAudio.play(team,true))log("Sound preview "+team);
               else log("Audio preview unavailable / busy / OFF");render();}),
             action("IMPORT WAV",false,()->importWav(team)));
         body.addView(row);
@@ -347,7 +347,7 @@ public final class MainActivity extends Activity {
         audioPrefs.edit().putInt("volume",n).apply();render();
     }
     private void importWav(String team){
-        if(GameDayService.isRunning()){
+        if(GameDayService.isRunning()||FollowService.isBusy()){
             log("Stop monitoring before importing audio to avoid interrupting a goal");render();return;
         }
         importingTeam=team;

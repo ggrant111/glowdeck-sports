@@ -223,6 +223,7 @@ void adjustVolume(int delta) {
     banner("Sound volume "+String(soundVolume)+"%");
 }
 void previewSound(bool home) {
+    if(following.busy()){banner("Stop followed games before sound preview");return;}
     const gd::AudioChoice &choice=home?homeSound:awaySound;
     if(!trySound(choice))banner(String("Audio: ")+audio.lastError());
     else banner(String("Sound preview: ")+(home?"HOME":"AWAY"));

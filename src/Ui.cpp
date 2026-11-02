@@ -44,6 +44,7 @@ void Ui::header(const UiState &state, const char *title) {
     tft_.drawString("GLOWDECK", 10, 9, 2);
     tft_.setTextColor(TEAL, CARD);
     tft_.drawString(title, 110, 9, 2);
+    if(page_==Page::Following && state.following)tft_.drawString(state.following->running?"ON":state.following->busy()?"RESTORE":"OFF",205,13,1);
     tft_.setTextColor(state.wifiConnected ? TFT_GREEN : TFT_RED, CARD);
     tft_.drawString(state.wifiConnected ? "WiFi" : "Offline", 264, 9, 2);
 }
@@ -97,7 +98,7 @@ void Ui::gameday(const UiState &state) {
         tft_.setTextColor(MUTED, BG);
         tft_.drawCentreString("Choose a game in SCORES", 160, 66, 2);
         tft_.drawCentreString("Then choose outputs in FOLLOWING", 160, 110, 2);
-        button(196,82,114,21,"FOLLOWING",TEAL);
+        button(196,89,114,16,"FOLLOWING",TEAL);
         return;
     }
     tft_.setTextColor(FG, BG);
@@ -106,7 +107,7 @@ void Ui::gameday(const UiState &state) {
     tft_.setTextColor(MUTED, BG);
     tft_.drawCentreString(String(gd::gameStateText(*game))+(gd::isUpcoming(*game)?" "+localStart(game->startTime,state.hour24):String("")), 160, 73, 2);
     tft_.drawString("CELEBRATE", 10, 87, 2);
-    button(196,82,114,21,"FOLLOWING",TEAL);
+    button(196,89,114,16,"FOLLOWING",TEAL);
     button(8, 105, 96, 29, game->away,
         state.celebrationMode == gd::CelebrationMode::Away ? TEAL : CARD);
     button(111, 105, 96, 29, game->home,
@@ -250,12 +251,12 @@ String Ui::renderKey(const UiState &s) const {
 }
 void Ui::draw(const UiState &state) {
     String key = renderKey(state);
-    if(state.following){key+=state.following->message+String(state.following->running)+String(state.following->count);for(unsigned i=0;i<state.following->count;++i){auto &f=state.following->games[i];key+=String(f.game.id)+String(f.display)+f.status+String(f.game.awayScore)+String(f.game.homeScore);}}
+    if(page_==Page::Following && state.following){key+=state.following->message+String(state.following->running)+String(state.following->count);for(unsigned i=0;i<state.following->count;++i){auto &f=state.following->games[i];key+=String(f.game.id)+String(f.display)+f.status+String(f.game.awayScore)+String(f.game.homeScore);}}
     if (rendered_ && key == lastRenderKey_) return;
     lastRenderKey_ = key;
     rendered_ = true;
     tft_.fillScreen(BG);
-    header(state, page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : (page_ == Page::Audio ? "AUDIO" : "STATUS"))));
+    header(state, page_ == Page::Following ? "FOLLOWING" : page_ == Page::Scores ? "NHL" : (page_ == Page::GameDay ? "GAME" : (page_ == Page::Lights ? "WLED" : (page_ == Page::Audio ? "AUDIO" : "STATUS"))));
     switch (page_) {
         case Page::Scores: scores(state); break;
         case Page::GameDay: gameday(state); break;
@@ -301,7 +302,7 @@ UiAction Ui::touch(int16_t x, int16_t y, const UiState &state) {
             if (row < 4 && idx < state.scoreboard->count) return {ActionType::SelectGame, idx};
         }
     } else if (page_ == Page::GameDay) {
-        if(x>=196&&y>=82&&y<103){page_=Page::Following;return {};}
+        if(x>=196&&y>=89&&y<105){page_=Page::Following;return {};}
         if (y >= 105 && y < 137) {
             if (x < 107) return {ActionType::CelebrateAway};
             if (x < 211) return {ActionType::CelebrateHome};

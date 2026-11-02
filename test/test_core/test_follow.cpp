@@ -11,4 +11,4 @@ void test_follow_overflow_priority(){ReactionQueue q;QueuedReaction a,out;a.kind
 void test_follow_independent_games(){GoalEngine engines[4];GoalFeed feed;feed.valid=true;feed.awayId=1;feed.homeId=2;strcpy(feed.state,"LIVE");Game g;strcpy(g.state,"LIVE");
  for(int i=0;i<4;i++){g.id=2000000001+i;engines[i].selectGame(g.id);engines[i].setMode(CelebrationMode::Both);TEST_ASSERT_TRUE(engines[i].arm(&g,0));feed.gameId=g.id;feed.latestEventId=10;feed.count=0;engines[i].observeFeed(feed,100);}
  for(int i=0;i<4;i++){feed.gameId=2000000001+i;feed.latestEventId=11;feed.count=1;feed.goals[0].id=11;feed.goals[0].ownerId=1;engines[i].observeFeed(feed,200);TEST_ASSERT_TRUE(engines[i].ready(200));}
- engines[0].pause();TEST_ASSERT_FALSE(engines[0].ready(200));for(int i=1;i<4;i++){TEST_ASSERT_TRUE(engines[i].consume(200).valid);engines[i].observeFeed(feed,300);TEST_ASSERT_FALSE(engines[i].ready(300));}}
+ engines[0].pause();TEST_ASSERT_FALSE(engines[0].ready(200));for(int i=1;i<4;i++){TEST_ASSERT_TRUE(engines[i].consume(200).valid);feed.gameId=2000000001+i;engines[i].observeFeed(feed,300);TEST_ASSERT_FALSE(engines[i].ready(300));}}

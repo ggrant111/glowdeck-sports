@@ -10,8 +10,8 @@ final class FollowQueue {
     private final List<Event> events=new ArrayList<>();
     int size(){return events.size();}
     void clear(){events.clear();}
-    void removeGame(int game){events.removeIf(e->e.game==game);}
-    void expire(long now){events.removeIf(e->now-e.at>TTL);}
+    void removeGame(int game){for(int i=events.size()-1;i>=0;i--)if(events.get(i).game==game)events.remove(i);}
+    void expire(long now){for(int i=events.size()-1;i>=0;i--)if(now-events.get(i).at>TTL)events.remove(i);}
     boolean push(Event e,long now){expire(now);if(events.size()==8){int low=0;for(int i=1;i<events.size();i++)if(EventEffects.priority(events.get(i).kind)<EventEffects.priority(events.get(low).kind))low=i;
         if(EventEffects.priority(e.kind)<=EventEffects.priority(events.get(low).kind))return false;events.remove(low);}
         events.add(e);return true;}
