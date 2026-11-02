@@ -3,6 +3,7 @@
 #include <Arduino.h>
 class NhlClient {
 public:
-    // Replaces output only on a valid response; caller retains last known score on errors.
     bool poll(gd::Scoreboard &output, String &error);
+    // Server's eventId + eventOwnerTeamId, not inferred scoreboard deltas.
+    bool pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error);
 };

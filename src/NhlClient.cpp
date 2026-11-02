@@ -77,3 +77,64 @@ bool NhlClient::poll(gd::Scoreboard &out, String &error) {
     out = temp;
     return true;
 }
+
+bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error) {
+    error = "";
+    if (gameId < 2000000000UL || gameId > 2999999999UL) {
+        error="Invalid NHL game ID"; return false;
+    }
+    WiFiClientSecure client;
+    // Prototype TLS limitation: see ROADMAP and release blockers.
+    client.setInsecure();
+    client.setTimeout(10000);
+    HTTPClient http;
+    http.setTimeout(10000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    const String url="https://api-web.nhle.com/v1/gamecenter/"+String(gameId)+"/play-by-play";
+    if (!http.begin(client,url)) { error="PBP connection failed"; return false; }
+    http.addHeader("Accept","application/json");
+    const int status=http.GET();
+    if (status!=HTTP_CODE_OK) { error="PBP HTTP "+String(status); http.end(); return false; }
+
+    // Filtered streaming read avoids holding enormous full play objects in RAM.
+    StaticJsonDocument<512> filter;
+    filter["id"]=true;
+    filter["awayTeam"]["id"]=true;
+    filter["homeTeam"]["id"]=true;
+    filter["plays"][0]["eventId"]=true;
+    filter["plays"][0]["typeDescKey"]=true;
+    filter["plays"][0]["details"]["eventOwnerTeamId"]=true;
+    DynamicJsonDocument doc(40*1024);
+    const DeserializationError parse=deserializeJson(doc,http.getStream(),
+        DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(14));
+    http.end();
+    if(parse) { error=String("PBP JSON: ")+parse.c_str(); return false; }
+    if(!doc["plays"].is<JsonArray>() || !doc["awayTeam"]["id"].is<int>() ||
+       !doc["homeTeam"]["id"].is<int>() || !doc["id"].is<uint32_t>()) {
+        error="PBP missing required fields"; return false;
+    }
+    gd::GoalFeed sample;
+    sample.gameId=doc["id"].as<uint32_t>();
+    sample.awayId=doc["awayTeam"]["id"].as<uint32_t>();
+    sample.homeId=doc["homeTeam"]["id"].as<uint32_t>();
+    if(sample.gameId!=gameId || !sample.awayId || !sample.homeId ||
+       sample.awayId==sample.homeId) {
+        error="PBP game/team mismatch"; return false;
+    }
+    for(JsonObject play: doc["plays"].as<JsonArray>()) {
+        const uint32_t id=play["eventId"] | 0UL;
+        if(!id) continue;
+        if(id>sample.latestEventId)sample.latestEventId=id;
+        const char *type=play["typeDescKey"] | "";
+        if(strcmp(type,"goal")!=0) continue;
+        if(sample.count>=gd::MAX_GOALS_PER_GAME) {
+            error="Too many goals in play feed"; return false;
+        }
+        gd::GoalPlay &goal=sample.goals[sample.count++];
+        goal.id=id;
+        goal.ownerId=play["details"]["eventOwnerTeamId"] | 0UL;
+    }
+    sample.valid=true;
+    out=sample;
+    return true;
+}
