@@ -267,3 +267,26 @@ With the CYD touchscreen still unavailable, we have added a **native Fire TV APK
 - [ ] Observe three real NHL games for new goal-ID detection, timing, disarm reliability and false positive suppression; log results before considering production automatic lights.
 
 **Latest Fire TV verification:** [GitHub Actions run 41372660218](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372660218) passed Java tests, signed APK assembly and release upload, including standalone UTA/BOS WLED previews on NHL game-free days. App remains **hardware-untested**.\n\n**Test APK:** [GitHub prerelease](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). **Warning:** CI debug signing is ephemeral, so a future replacement APK can require uninstall/reinstall. Fire TV app foreground/lifecycle tests are **not** a substitute for ESP32 hardware bring-up.
+
+## 11. Fire TV v0.2 background GameDay monitor (2026-11-01)
+
+**Why:** v0.1 deliberately disarmed whenever the Activity left the foreground, so NHL-to-WLED goal reactions could not continue when watching a game in YouTube TV, ESPN, Prime Video or another TV app. This v0.2 update moves network polling, event safety and WLED effects to an Android **foreground Service** controlled by the TV Activity.
+
+**Release:** [Fire TV v0.2 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk) · [source and installation guide](firetv/README.md) · [verified CI run 41373942957](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957)
+
+- [x] Service declared with Android foreground-service permissions and `dataSync` type, promoted immediately via `startForeground()`.
+- [x] Explicit **ARM IN BACKGROUND** action; never automatically resume after boot or process death (`START_NOT_STICKY`).
+- [x] Ongoing foreground notification with user STOP action and direct return-to-app action; on-screen STOP button works after returning from streaming apps.
+- [x] Activity `onStop()` no longer disarms NHL goal monitoring; foreground service owns polling and delayed effects independently of UI visibility.
+- [x] Initial NHL play-by-play baseline, 25-second periodic polling, ~55-second live-game status checks, ID dedupe, favorite-team ownership, 20-second cooldown, 0–90s TV delay.
+- [x] When network polling fails, PAUSE and cancel delayed triggers; establish a new baseline after recovery rather than replaying old goals.
+- [x] WLED state journaling before any goal scene, 8-second automatic restoration, explicit STOP restoration attempt, and journal retained if restore fails.
+- [x] Block manual WLED changes, game switches, or delay changes while monitoring is active.
+- [x] Seven additional JVM safety rule tests and portable Java smoke assertions; APK built and released by [CI](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957).
+- [ ] **Hardware acceptance:** sideload on Fire TV, grant notification permission if asked, verify notification and foreground service status.
+- [ ] **Switching test:** arm for an actual live NHL matchup; press Home and watch another streaming app at least 30 minutes; confirm polling/logs and goal detection continue.
+- [ ] **Lighting test:** verify exact WLED segment 0 and master state restored after an actual new favorite goal, including a deliberate STOP during an active scene.
+- [ ] **Recovery test:** disconnect Wi-Fi during polling; confirm PAUSED state, no old goals replay on reconnect; force-stop/relaunch and check any outstanding restore journal.
+- [ ] **Endurance:** observe at least 3 live NHL games on a real Fire TV across relevant Fire OS versions; record API latency, duplicate/missed goals and service lifecycle failures.
+
+**Known caveats:** The Fire TV must remain powered and network-connected; OS memory/sleep restrictions may stop the service; Android 15+ has special limits for `dataSync` with newer target SDKs; debug APK signatures can differ between builds and require uninstall/reinstall. No 100% uptime guarantee or live-device validation has been claimed.

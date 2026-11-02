@@ -4,6 +4,8 @@
 
 Tracking: [PROJECT_PLAN.md](PROJECT_PLAN.md) · [Progress log](docs/PROGRESS_LOG.md) · [Sprint 2 design](docs/SPRINT2.md) · [Validation](docs/VALIDATION.md)
 
+**CURRENT Fire TV v0.2: [Background goal monitoring APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk)** — now uses an opt-in Android foreground service, so it can continue NHL play-by-play polling and WLED goal effects while the user watches a game in another Fire TV app. Monitoring requires explicit arming and can be stopped from the app or notification. [Installation and validation](firetv/README.md). This is a **test build**; real Fire TV/Fire OS endurance tests remain open.
+
 **NEW: [GlowDeck GameDay Fire TV APK](firetv/README.md)** — a native, D-pad-controlled Fire TV test console. Select real NHL games, inspect play-by-play, pair a local WLED IP, preview team colors with restore, and optionally arm safe new-goal reactions. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.1.0-test). This is a **separate test platform**; it does not replace the ESP32 firmware.
 
 ## Try v0.2 without the ESP32

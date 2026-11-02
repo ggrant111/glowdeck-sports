@@ -44,3 +44,10 @@
 - The APK is a temporary debug-signed prerelease. Full hardware acceptance required before making claims about live event or WLED reliability.
 
 - PASS (final Fire TV v0.1 build): [CI run 41372660218](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372660218) completed native JVM tests, Android APK compile, checksum and test-release publishing. [Download APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.1.0-test/GlowDeck-GameDay-FireTV-v0.1.apk). WLED preview can now use UTA blue/BOS gold without a selected game. Fire TV/WLED hardware acceptance still NOT RUN.
+
+## Fire TV background v0.2 (2026-11-01)
+
+- PASS: Pure Java safety-rule smoke checks (7 assertions) for disarmed conditions, favorite ownership, restore lock, cooldown, stale feed and bounded delay.
+- PASS: [GitHub Actions build 41373942957](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957) — Android JVM unit tests, Fire TV debug APK assembly, SHA256 file creation and release publishing.
+- [Download v0.2 APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk); source: `firetv/app/src/main/java/com/gkowdeck/gameday/firetv/GameDayService.java`.
+- NOT RUN: Real Fire TV background survival with YouTube TV/Prime/ESPN; foreground notification lifecycle and STOP action; real NHL goal and WLED state restoration; OS kill/network-loss tests. This feature is not hardware verified.

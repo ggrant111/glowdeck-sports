@@ -66,6 +66,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - Added independent Utah-blue/Boston-gold WLED color previews with no NHL matchup, so manual LAN tests work on game-free days.
 - [CI run 41372660218](https://github.com/ggrant111/glowdeck-sports/actions/runs/41372660218) passed Android unit tests, compiled and published the signed debug APK. Physical Fire TV, live NHL and real WLED tests remain open.
 
+### 2026-11-01 — Fire TV v0.2 service runs behind streaming apps
+
+- **Implemented:** New `GameDayService.java` foreground service, notification STOP action, explicit ARM IN BACKGROUND and STOP buttons, independent NHL/PBP polling, delayed goal-color scenes and WLED journaled restore. Activity no longer disarms in `onStop()`. Added `MonitorRules.java` and 7 Android JVM safety tests.
+- **Verified:** Portable Java smoke assertions passed; [GitHub Actions run 41373942957](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957) passed Android/JVM test and APK compilation steps, with [signed debug APK prerelease](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.2.0-test).
+- **Open:** User's Fire TV has not been physically tested for HOME/YouTube TV/ESPN transition, continuous monitoring, notification permissions, real network events or restoration.
+- **Next:** Sideload v0.2, connect WLED, arm on a live NHL game, switch to streaming app, validate continuing service with `adb logcat -s GlowDeckMonitor`, and confirm manual STOP and restore.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version
