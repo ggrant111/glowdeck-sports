@@ -69,6 +69,9 @@ public final class MainActivity extends Activity {
         }
         prefs=getSharedPreferences("gameday-lab",MODE_PRIVATE);
         audioPrefs=getSharedPreferences("gameday-audio",MODE_PRIVATE);
+        // Privacy/safety: a freshly launched Activity never silently re-enables
+        // background sound, even if an earlier session had sound enabled.
+        audioPrefs.edit().putBoolean("enabled",false).commit();
         gameAudio=new GameAudio(this);
         wledIp=prefs.getString("wledIp","192.168.1.71");
         delaySec=prefs.getInt("delaySec",0);
