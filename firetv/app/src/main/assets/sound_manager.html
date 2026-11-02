@@ -97,7 +97,7 @@ footer{font-size:12px;color:#98b4b8;line-height:1.6;margin-top:18px}
     <button id="upload" class="main" type="button">Upload to Fire TV</button>
     <button id="localPreview" type="button">▶ Preview file on phone</button>
   </div>
-  <p class="muted sub gap">Required: uncompressed PCM WAV, mono, 16,000 Hz, 16-bit, at most 10 seconds (320 KB audio). Other WAV formats must be converted first.</p>
+  <p class="muted sub gap">Upload a WAV from your phone: the page converts supported WAV formats to mono 16 kHz/16-bit locally and limits playback to the first 10 seconds. The Fire TV validates the converted result. No cloud upload.</p>
 </section>
 </div>
 <footer>This page runs directly on your Fire TV over private-network HTTP. Keep the pairing code private; do not port-forward port 8788 or use untrusted public Wi-Fi. The sound manager shuts down when you leave the SOUND screen. NHL background monitoring and WLED are separate and remain unchanged.</footer>
@@ -189,17 +189,67 @@ $("volume").addEventListener("input",()=>$("volumeValue").textContent=$("volume"
 $("volume").addEventListener("change",()=>perform(()=>request("/api/settings","POST",{volume:Number($("volume").value)})));
 $("preview").addEventListener("click",()=>perform(()=>request("/api/preview","POST",{team:chosen})));
 $("stop").addEventListener("click",()=>perform(()=>request("/api/stop","POST",{})));
+function setAscii(view,offset,text){
+  for(let j=0;j<text.length;j++)view.setUint8(offset+j,text.charCodeAt(j));
+}
+function canonicalWav(buffer){
+  if(buffer.byteLength<44||buffer.byteLength>320044)return false;
+  const v=new DataView(buffer);
+  const eq=(at,s)=>Array.from(s).every((ch,i)=>v.getUint8(at+i)===ch.charCodeAt(0));
+  return eq(0,"RIFF")&&eq(8,"WAVEfmt ")&&eq(36,"data")
+    &&v.getUint32(16,true)===16&&v.getUint16(20,true)===1
+    &&v.getUint16(22,true)===1&&v.getUint32(24,true)===16000
+    &&v.getUint32(28,true)===32000&&v.getUint16(32,true)===2
+    &&v.getUint16(34,true)===16&&v.getUint32(40,true)===buffer.byteLength-44
+    &&v.getUint32(40,true)>0;
+}
+async function readyWav(file){
+  if(file.size>12000000)throw Error("Choose a WAV smaller than 12 MB.");
+  const original=await file.arrayBuffer();
+  if(canonicalWav(original))return {blob:new Blob([original],{type:"audio/wav"}),converted:false};
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)throw Error("Your browser can't convert this WAV. Use a mono 16kHz PCM file.");
+  const ctx=new AudioCtx();
+  let decoded;
+  try{decoded=await ctx.decodeAudioData(original.slice(0))}
+  catch(e){throw Error("This WAV encoding couldn't be decoded. Convert it to uncompressed PCM first.")}
+  finally{ctx.close().catch(()=>{})}
+  const count=Math.min(160000,Math.floor(decoded.duration*16000));
+  if(count<1)throw Error("The chosen file has no audible samples.");
+  const pcm=new ArrayBuffer(44+count*2),out=new DataView(pcm);
+  setAscii(out,0,"RIFF");out.setUint32(4,36+count*2,true);
+  setAscii(out,8,"WAVEfmt ");out.setUint32(16,16,true);
+  out.setUint16(20,1,true);out.setUint16(22,1,true);
+  out.setUint32(24,16000,true);out.setUint32(28,32000,true);
+  out.setUint16(32,2,true);out.setUint16(34,16,true);
+  setAscii(out,36,"data");out.setUint32(40,count*2,true);
+  const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i));
+  for(let i=0;i<count;i++){
+    const at=Math.min(decoded.length-1,i*decoded.sampleRate/16000);
+    const index=Math.floor(at),frac=at-index;
+    let sample=0;
+    for(const channel of channels){
+      sample+=channel[index]*(1-frac)+channel[Math.min(channel.length-1,index+1)]*frac;
+    }
+    sample=Math.max(-1,Math.min(1,sample/channels.length));
+    out.setInt16(44+i*2,Math.max(-32768,Math.min(32767,Math.round(sample*32767))),true);
+  }
+  return {blob:new Blob([pcm],{type:"audio/wav"}),converted:true,
+    trimmed:decoded.duration>10.0};
+}
 $("upload").addEventListener("click",async()=>{
   const file=$("file").files[0];
   if(!file){feedback("Choose a WAV file first.",false);return}
-  if(file.size<44||file.size>320044){feedback("WAV must be 44–320044 bytes.",false);return}
   const team=chosen;
   $("upload").disabled=true;
-  feedback("Uploading "+file.name+" to "+team+"…",true);
+  feedback("Preparing "+file.name+" for "+team+"…",true);
   try{
-    await request("/api/upload/"+team,"PUT",file,"audio/wav");
+    const result=await readyWav(file);
+    await request("/api/upload/"+team,"PUT",result.blob,"audio/wav");
     await refresh();
-    feedback("Uploaded to Fire TV as "+team+".wav and assigned to "+team+".",true);
+    feedback("Uploaded "+team+".wav to Fire TV and assigned it to "+team+"."
+      +(result.converted?" Converted to PCM mono 16 kHz on your phone.":"")
+      +(result.trimmed?" Only the first 10 seconds were used.":""),true);
   }catch(error){feedback(error.message||"Upload failed",false)}
   finally{showInfo()}
 });
