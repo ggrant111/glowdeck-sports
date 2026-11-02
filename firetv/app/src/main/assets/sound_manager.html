@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#091317"/>
+<title>GlowDeck GameDay · Sound Manager</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;background:#091317;color:#e7f4f4;min-height:100vh}
+.wrap{max-width:790px;padding:22px 17px 56px;margin:auto}
+header{display:flex;align-items:center;gap:12px;margin:3px 0 22px}
+.logo{background:#31837a;border-radius:14px;display:grid;place-items:center;height:52px;width:52px;font-size:25px;font-weight:900}
+h1,h2,p{margin:0}h1{font-size:25px;letter-spacing:-.8px}h2{font-size:17px}
+.muted{color:#9bb7bc}.sub{font-size:13px;line-height:1.5}
+.tag{display:inline-flex;gap:6px;align-items:center;color:#86d7cb;font-size:11px;letter-spacing:.09em;font-weight:800}
+.dot{background:#86d7cb;width:7px;height:7px;border-radius:50%}
+.panel{border:1px solid #29434a;border-radius:15px;padding:18px;margin:12px 0;background:#14262b}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.space{justify-content:space-between}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:7px;color:#d3e7e6}
+input[type=password],input[type=text],select{background:#07171c;border:1px solid #39555d;border-radius:9px;padding:12px;color:#eaf6f5;min-height:44px;font-size:16px;max-width:100%;width:100%}
+select{appearance:auto}
+button{min-height:44px;padding:11px 14px;border-radius:9px;border:1px solid #39565c;background:#243c44;color:#edfafa;font-size:14px;font-weight:700;cursor:pointer}
+button.main{background:#31837a;border-color:#31837a}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #b1eade;outline-offset:3px}
+.gap{margin-top:13px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.flex1{flex:1;min-width:125px}.small{font-size:12px}.hidden{display:none!important}
+.soundtype{margin-top:5px}
+.swatch{width:11px;height:11px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
+.banner{padding:10px 12px;border-radius:9px;background:#1a3940;color:#cce3e4;font-size:13px;line-height:1.45}
+.warn{background:#432e1d;color:#fbdcb0}.okay{background:#173e35;color:#a1ead1}
+#feedback{white-space:pre-line;min-height:21px}
+input[type=range]{width:100%;accent-color:#51b8a8;min-height:34px}
+.file{display:block;margin-top:10px;background:#0e1f23;border:1px dashed #44646c;padding:15px;border-radius:10px}
+.file input{max-width:100%;font-size:14px}
+footer{font-size:12px;color:#98b4b8;line-height:1.6;margin-top:18px}
+@media(max-width:490px){.grid{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:15px}.wrap{padding:16px 13px 44px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo" aria-hidden="true">G</div>
+  <div><div class="tag"><span class="dot"></span> LOCAL SOUND MANAGER · v0.4.1</div><h1>GlowDeck GameDay</h1><p class="muted sub">Manage your Fire TV goal sounds from this phone</p></div>
+</header>
+<div class="banner">Keep the GlowDeck <strong>SOUND</strong> screen open on your Fire TV. Your iPhone and Fire TV must be on the same reachable home network. Nothing is uploaded to the cloud.</div>
+
+<section class="panel" aria-labelledby="pair-title">
+  <div class="row space"><h2 id="pair-title">Connect to your Fire TV</h2><span id="connection" class="muted small">Not paired</span></div>
+  <p class="muted sub gap">Enter the 8-digit pairing code shown on your Fire TV SOUND screen. A new code is generated whenever the local manager starts.</p>
+  <div class="row gap">
+    <div class="flex1"><label for="pin">Fire TV pairing code</label><input id="pin" inputmode="numeric" autocomplete="off" maxlength="8" pattern="[0-9]{8}" type="password" placeholder="8-digit code" aria-label="8-digit Fire TV code"/></div>
+    <button id="pair" class="main" type="button" style="align-self:end">Connect</button>
+  </div>
+  <p id="feedback" class="muted sub gap" role="status" aria-live="polite"></p>
+</section>
+
+<div id="manager" class="hidden">
+<section class="panel" aria-labelledby="settings-title">
+  <div class="row space">
+    <div><h2 id="settings-title">Goal sound settings</h2><p class="muted sub">Independent from WLED lighting</p></div>
+    <button id="master" type="button">Enable sound</button>
+  </div>
+  <div class="gap"><div class="row space"><label for="volume">Sound volume</label><strong id="volumeValue">50%</strong></div><input type="range" id="volume" min="0" max="100" step="10" value="50"/></div>
+  <div id="monitorNote" class="banner gap">Background monitoring state unknown.</div>
+</section>
+
+<section class="panel" aria-labelledby="team-title">
+  <h2 id="team-title">Team sound library</h2>
+  <p class="muted sub gap">Choose any NHL team. Each can use a built-in horn or its own uploaded WAV file.</p>
+  <div class="grid gap">
+    <div><label for="team">NHL team</label><select id="team"></select></div>
+    <div><label for="sound">Assigned celebration sound</label><select id="sound">
+      <option value="0">Off</option>
+      <option value="1">Stadium Horn (built-in)</option>
+      <option value="2">Double Horn (built-in)</option>
+      <option value="3">Siren (built-in)</option>
+      <option value="4">Custom WAV</option>
+    </select></div>
+  </div>
+  <div id="teamInfo" class="banner gap">Loading team settings…</div>
+  <div class="row gap">
+    <button id="saveSound" class="main" type="button">Save team sound</button>
+    <button id="preview" type="button">▶ Play on Fire TV</button>
+    <button id="stop" type="button">■ Stop preview</button>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="upload-title">
+  <h2 id="upload-title">Upload custom WAV</h2>
+  <p class="muted sub gap">The file will be saved on your Fire TV for the selected NHL team. Uploading automatically assigns Custom WAV to that team.</p>
+  <label class="file" for="file">Choose a WAV from your iPhone or computer
+    <input type="file" id="file" accept=".wav,audio/wav"/>
+  </label>
+  <div class="row gap">
+    <button id="upload" class="main" type="button">Upload to Fire TV</button>
+    <button id="localPreview" type="button">▶ Preview file on phone</button>
+  </div>
+  <p class="muted sub gap">Required: uncompressed PCM WAV, mono, 16,000 Hz, 16-bit, at most 10 seconds (320 KB audio). Other WAV formats must be converted first.</p>
+</section>
+</div>
+<footer>This page runs directly on your Fire TV over private-network HTTP. Keep the pairing code private; do not port-forward port 8788 or use untrusted public Wi-Fi. The sound manager shuts down when you leave the SOUND screen. NHL background monitoring and WLED are separate and remain unchanged.</footer>
+</div>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const names={
+ ANA:"Anaheim Ducks",BOS:"Boston Bruins",BUF:"Buffalo Sabres",CAR:"Carolina Hurricanes",
+ CBJ:"Columbus Blue Jackets",CGY:"Calgary Flames",CHI:"Chicago Blackhawks",COL:"Colorado Avalanche",
+ DAL:"Dallas Stars",DET:"Detroit Red Wings",EDM:"Edmonton Oilers",FLA:"Florida Panthers",
+ LAK:"Los Angeles Kings",MIN:"Minnesota Wild",MTL:"Montréal Canadiens",NJD:"New Jersey Devils",
+ NSH:"Nashville Predators",NYI:"New York Islanders",NYR:"New York Rangers",OTT:"Ottawa Senators",
+ PHI:"Philadelphia Flyers",PIT:"Pittsburgh Penguins",SEA:"Seattle Kraken",SJS:"San Jose Sharks",
+ STL:"St. Louis Blues",TBL:"Tampa Bay Lightning",TOR:"Toronto Maple Leafs",UTA:"Utah Mammoth",
+ VAN:"Vancouver Canucks",VGK:"Vegas Golden Knights",WPG:"Winnipeg Jets",WSH:"Washington Capitals"
+};
+let pin="",state=null,chosen="ANA",localObjectUrl=null;
+const typeName=["Off","Stadium Horn","Double Horn","Siren","Custom WAV"];
+function feedback(message,good){$("feedback").textContent=message;$("feedback").style.color=good?"#a1ead1":"#ffd0b0"}
+function teamState(){return state&&state.teams.find(x=>x.team===chosen)}
+function busyLock(){return !!(state&&state.armed)}
+function showInfo(){
+  const t=teamState();if(!t)return;
+  $("sound").value=String(t.kind);
+  const f=t.hasFile?"Uploaded WAV ready":"No custom file uploaded";
+  $("teamInfo").className="banner gap"+(t.hasFile?" okay":"");
+  $("teamInfo").textContent=chosen+" · "+names[chosen]+" · "+typeName[t.kind]+" · "+f;
+  $("upload").disabled=busyLock();
+  $("saveSound").disabled=busyLock();
+  $("preview").disabled=busyLock();
+  $("stop").disabled=busyLock();
+}
+function render(){
+  if(!state)return;
+  $("manager").classList.remove("hidden");
+  $("connection").textContent="Paired with Fire TV";
+  $("connection").style.color="#a1ead1";
+  $("volume").value=state.volume;$("volumeValue").textContent=state.volume+"%";
+  $("master").textContent=state.enabled?"Sound ON · Tap to mute":"Sound OFF · Tap to enable";
+  $("master").classList.toggle("main",state.enabled);
+  $("master").disabled=busyLock();
+  $("volume").disabled=busyLock();
+  $("monitorNote").className="banner gap"+(busyLock()?" warn":" okay");
+  $("monitorNote").textContent=busyLock()?"Live NHL monitor is armed. Stop monitoring on the Fire TV before changing sounds or previewing files.":"Sound manager ready. You may upload, assign and preview sounds on the Fire TV.";
+  if(!$("team").options.length){
+    state.teams.forEach(t=>{
+      const opt=document.createElement("option");
+      opt.value=t.team;opt.textContent=t.team+" — "+(names[t.team]||t.team);
+      $("team").add(opt);
+    });
+  }
+  $("team").value=chosen;
+  showInfo();
+}
+async function request(path,method,data,contentType){
+  const headers={"X-GlowDeck-PIN":pin};
+  if(data!==undefined)headers["Content-Type"]=contentType||"application/json";
+  const options={method:method||"GET",headers,cache:"no-store"};
+  if(data!==undefined)options.body=contentType?data:JSON.stringify(data);
+  const result=await fetch(path,options);
+  let payload={};
+  try{payload=await result.json()}catch(e){}
+  if(!result.ok)throw Error(payload.error||("Fire TV returned "+result.status));
+  return payload;
+}
+async function refresh(){
+  state=await request("/api/status","GET");
+  render();
+}
+async function perform(task){
+  try{await task();feedback("Saved on Fire TV.",true);await refresh()}
+  catch(error){feedback(error.message||"Connection failed",false)}
+}
+$("pair").addEventListener("click",async()=>{
+  const value=$("pin").value.trim();
+  if(!/^[0-9]{8}$/.test(value)){feedback("Enter the 8 digits displayed on your TV.",false);return}
+  pin=value;
+  try{await refresh();feedback("Connected to the Fire TV sound manager.",true);$("pin").value=""}
+  catch(error){pin="";feedback(error.message||"Connection failed",false)}
+});
+$("team").addEventListener("change",()=>{chosen=$("team").value;showInfo()});
+$("saveSound").addEventListener("click",()=>perform(()=>request("/api/team","POST",{
+  team:chosen,kind:Number($("sound").value)
+})));
+$("master").addEventListener("click",()=>perform(()=>request("/api/settings","POST",{enabled:!state.enabled})));
+$("volume").addEventListener("input",()=>$("volumeValue").textContent=$("volume").value+"%");
+$("volume").addEventListener("change",()=>perform(()=>request("/api/settings","POST",{volume:Number($("volume").value)})));
+$("preview").addEventListener("click",()=>perform(()=>request("/api/preview","POST",{team:chosen})));
+$("stop").addEventListener("click",()=>perform(()=>request("/api/stop","POST",{})));
+$("upload").addEventListener("click",async()=>{
+  const file=$("file").files[0];
+  if(!file){feedback("Choose a WAV file first.",false);return}
+  if(file.size<44||file.size>320044){feedback("WAV must be 44–320044 bytes.",false);return}
+  const team=chosen;
+  $("upload").disabled=true;
+  feedback("Uploading "+file.name+" to "+team+"…",true);
+  try{
+    await request("/api/upload/"+team,"PUT",file,"audio/wav");
+    await refresh();
+    feedback("Uploaded to Fire TV as "+team+".wav and assigned to "+team+".",true);
+  }catch(error){feedback(error.message||"Upload failed",false)}
+  finally{showInfo()}
+});
+$("localPreview").addEventListener("click",()=>{
+  const f=$("file").files[0];
+  if(!f){feedback("Choose a WAV file first.",false);return}
+  if(localObjectUrl)URL.revokeObjectURL(localObjectUrl);
+  localObjectUrl=URL.createObjectURL(f);
+  const audio=new Audio(localObjectUrl);
+  audio.volume=0.5;
+  audio.play().then(()=>feedback("Playing chosen WAV on this device.",true))
+    .catch(()=>feedback("Your browser couldn't play this WAV. Try converting it to PCM mono 16kHz/16-bit.",false));
+  audio.onended=()=>{URL.revokeObjectURL(localObjectUrl);localObjectUrl=null};
+});
+})();
+</script>
+</body>
+</html>
