@@ -75,3 +75,10 @@
 - PASS (ESP32 v0.3 `main` firmware): [Actions run 41380024037](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024037) passed **23/23** native tests, compiled ESP32-2432S028R firmware and uploaded `GlowDeck-GameDay-v0.3-firmware` artifact. This is not physical hardware validation.
 - PASS (cross-platform parity): [Actions run 41380024002](https://github.com/ggrant111/glowdeck-sports/actions/runs/41380024002) verified matching 32 NHL RGB values, Away/Home/Both modes, NHL PBP goal IDs, eight-second effects, 20-second cooldown and restore hooks.
 - Hosted simulator https://glowdeck-gameday-simulator.lovable.app published with v0.3 Away/Home/Both behavior. Lovable reported 21 tests and emulated 390×844 mobile checks passing. Actual Safari and ESP32 hardware tests pending.
+
+## v0.4 original + custom audio (2026-11-01)
+
+- PASS on feature branch: [ESP32 CI run 41382843599](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382843599) — **28/28 native tests passed** (including WAV header/name/size checks), CYD firmware compiled and artifact uploaded. GPIO26 speaker and microSD streaming have **not** been tested physically.
+- PASS on feature branch: [Fire TV CI run 41382441636](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636) — Android audio-model JVM tests and native APK compile passed. Background playback/audio focus and custom-file import **not yet tested on physical Fire TV**.
+- A v0.4 cross-platform parity workflow now checks three built-in horns, custom WAV validator, team-specific goal-triggered sounds, safe default audio OFF, touchscreen/TV UI and browser mock.
+- Physical hardware acceptance OPEN: confirm CYD amplifier GPIO26, speaker polarity on amplifier outputs, full WAV playback, SD/touch bus restoration, OS-level audio focus in YouTube TV, and continued WLED restoration after a goal.

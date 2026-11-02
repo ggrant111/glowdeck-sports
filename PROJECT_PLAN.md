@@ -4,7 +4,7 @@
 > **Project:** GlowDeck GameDay · **Hardware:** ESP32-2432S028R ("Cheap Yellow Display" / CYD, 2.8-inch resistive touchscreen)  
 > **Repository:** https://github.com/ggrant111/glowdeck-sports  
 > **Owner:** Geoff · **Created:** 2026-11-01 · **Last reviewed:** 2026-11-01  
-> **Current phase:** Sprint 1 hardware validation **blocked until the CYD arrives**; Sprint 2 **v0.2 CI VERIFIED**, and ESP32 Sprint 3 v0.3 PBP + Away/Home/Both source implemented and CI in progress; actual CYD hardware acceptance remains blocked.
+> **Current phase:** Sprint 1 hardware validation **blocked until the CYD arrives**; Sprints 1–3 software accepted; v0.4 cross-platform sound source implemented and tested in CI on feature branch, but physical CYD speaker and Fire TV audio-focus acceptance remain open.
 
 ## 0. How to keep this plan current
 
@@ -333,13 +333,20 @@ See the **[feature parity contract](docs/FEATURE_PARITY.md)** and its automated 
 
 ## 14. v0.4 audio: built-in PLUS custom sound support — design accepted (2026-11-01)
 
-The user selected **both** built-in/generated sound presets and user-imported custom audio. Details and acceptance criteria: **[Audio v0.4 specification](docs/AUDIO_V04.md)**. This is **planned, not currently running firmware**.
+The user selected **both** built-in/generated sound presets and user-imported custom audio. Details and acceptance criteria: **[Audio v0.4 specification](docs/AUDIO_V04.md)**. v0.4 audio source code now implemented and CI-tested on a feature branch; physical speaker and Fire TV audio-focus behavior remain **unverified**.
 
 - [x] Product decision: accept built-in original horn/beep presets **and** custom WAV per team and event, with independent volume, mute, preview, and safe fallback.
-- [ ] Implement nonblocking GPIO26/I2S-DAC audio output, microSD WAV reader and validation on the ESP32.
-- [ ] Implement matching source choices and team/event settings on Fire TV, preserving background audio-focus behavior and a default-off option.
-- [ ] Add browser previews for built-in and user-provided WAV with no cloud upload or real WLED control.
-- [ ] Extend parity contract, automated tests and release notes for audio behavior.
+- [x] ESP32 GPIO26 I2S/DAC output, synthesized horns, bounded microSD WAV streamer and strict header validation authored; compiler/native tests passed on feature branch.
+- [x] Fire TV 3 presets/custom imported WAV, team-specific preferences, default OFF background audio, and foreground service sound worker implemented and compiled. Fire OS focus behavior pending hardware test.
+- [x] Local HTML simulator updated with three original horns, per-team custom WAV and mock goal audio. Hosted Lovable simulator update submitted; deployment and Safari verification pending.
+- [x] C++ WAV validation tests, JVM audio tests, and v0.4 parity checker added; CI passing on feature branch; full release validation after merge pending.
 - [ ] Validate physical CYD speaker/amplifier revision and sound playback without disrupting Wi-Fi, NHL event detection, touch input or WLED restoration.
 
 **Scope safety:** audio failure must never prevent lighting restoration; custom files are user supplied. Do not automatically enable background TV sound or speaker output until user opts in.
+
+### v0.4 known limits before hardware acceptance
+
+- ESP32 GPIO26 amplifier wiring, actual volume, waveform quality and microSD streaming are **not tested on a physical board**.
+- SD and touch both use VSPI; v0.4 temporarily pauses touch polling during custom audio playback. Task/network WLED restore should still operate, but this needs real-board verification and later touch/SD concurrency improvement.
+- Fire TV v0.4 may not have file picker installed and Android's audio focus can vary across streaming apps. Test on YouTube TV, then verify WLED scene restoration unchanged.
+- Initial v0.4 triggers sounds for **NHL goal events only**. Non-goal sound triggers (periods, wins, power plays) stay on the roadmap.

@@ -105,6 +105,13 @@ The ongoing roadmap and checkbox acceptance tracker live in [`../PROJECT_PLAN.md
 - **Planned architecture:** Nonblocking ESP32 GPIO26 DAC audio + microSD PCM WAV; Fire TV local audio assets/opt-in background audio; browser-only simulated audio preview. Preserve existing WLED goal detection/restore behavior if audio fails.
 - **Status:** Specification only. No new audio firmware, APK, or functioning physical speaker test has been delivered yet. See [Audio v0.4 spec](AUDIO_V04.md).
 
+### 2026-11-01 — Implemented cross-platform v0.4 sound playback
+
+- **Changed:** ESP32 v0.4: 3 original I2S/DAC synthesized horns, streaming microSD WAV, 5th SOUND touchscreen page and browser setup, independent mute/volume/per-team source selection, goal-synchronized optional audio. Fire TV v0.4: Android AudioTrack playback worker with built-ins and imported WAV, SOUND page, separate per-team profiles, opt-in background audio. Browser mock v0.4 includes local sound preview and simulated goal sounds.
+- **Verified:** [ESP32 28 native tests, firmware compile](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382843599); [Fire TV unit tests, APK compile](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636). Original test WAV generator and strict WAV format validation added.
+- **Hardware limitations:** ESP32 revision, audio amplifier, SD/touch shared VSPI behavior, volume, and actual custom file playback not tested; Fire OS mixing with YouTube TV and browser Safari sound not tested.
+- **Next:** land green source after parity checks, publish APK and firmware artifact, test Fire TV first, then physical CYD once available.
+
 ## Entry template (copy for every new work session)
 
 ### YYYY-MM-DD — Sprint N / version

@@ -1,6 +1,6 @@
 # GlowDeck GameDay v0.4 — Built-in and Custom Sounds
 
-**Status: product/design specification ACCEPTED on 2026-11-01; not yet implemented or tested in either firmware or APK.** This is the cross-platform source of truth for GameDay audio behavior. See [Feature Parity](FEATURE_PARITY.md) and [Project Plan](../PROJECT_PLAN.md).
+**Status: v0.4 source IMPLEMENTED on Fire TV, ESP32, local browser mock; CI passed on feature branch, physical speaker/TV audio behavior NOT TESTED.** This is the cross-platform source of truth for GameDay audio behavior. See [Feature Parity](FEATURE_PARITY.md) and [Project Plan](../PROJECT_PLAN.md).
 
 ## Decision
 
@@ -9,12 +9,12 @@ Support **BOTH sound sources** rather than forcing the user to choose one global
 1. **Built-in sound library**: short original synthesized stadium-style horn, beep, cheer-like sound effect and silent option. Must work without a microSD card or internet. "Onboard" means sounds generated/packaged on the device, **not** a guarantee of a built-in physical speaker.
 2. **Custom sound library**: user-supplied, appropriately licensed WAV clips stored on a microSD card on the ESP32. Fire TV imports locally accessible user files; browser demo permits user-chosen local audio as a preview only.
 
-The user can mix built-in and custom selections in one event profile: e.g., UTA goal = built-in horn; BOS goal = `/gameday/audio/BOS_GOAL.WAV`; victory = built-in cheer. An invalid/missing custom file must **fail safely to a chosen built-in fallback** (or silence if sound is disabled), while WLED lights still work.
+The user can mix built-in and custom selections in one event profile: e.g., UTA goal = built-in horn; BOS goal = `/audio/BOS_GOAL.wav`; victory = built-in cheer. An invalid/missing custom file must **fail safely to a chosen built-in fallback** (or silence if sound is disabled), while WLED lights still work.
 
 ## UI contract
 
 - Shared **Sounds** screen/settings section: sound master on/off (default OFF for initial hardware bring-up), device volume 0–100% with capped output, Test speaker, Audio source [Built-in / Custom WAV / Off], source picker and **Preview Sound** action.
-- Map each event and team to a separate sound: away goal, home goal, win, period start, intermission, power play. Only goal events enabled in v0.4; others can appear as disabled *coming soon* without taking misleading actions.
+- Map each event and team to a separate sound: away goal, home goal, win, period start, intermission, power play. Only **goal events** are implemented in v0.4; the other event types remain future milestones.
 - The **AWAY / HOME / BOTH** NHL goal selector continues to determine which scoring events qualify. Sound source is a distinct choice, and each qualified scoring team uses its own assigned sound.
 - Store a selected sound per team/event (not only a single global selection); default built-in stadium horn for goals; inherit a global default if no team override exists.
 - **Try sound** must work while GameDay is disarmed and must not send WLED events or alter NHL monitoring. Volume slider displays and uses the same value as the audio output engine.
@@ -43,15 +43,29 @@ The user can mix built-in and custom selections in one event profile: e.g., UTA 
 
 ## Initial development / test gates
 
-- [ ] Shared original procedural tone/horn preset with short, clearly non-copyrighted clips.
-- [ ] Per-game Away/Home/Both goals map correct owner to correct sound asset.
-- [ ] Built-in playback, custom file loading, mono WAV format validator and bounded task buffer.
-- [ ] Independent mute and volume with persistence, mute on restart for initial tests.
-- [ ] Missing/invalid WAV gracefully falls back while WLED continues unaffected.
-- [ ] Cancellation and rapid goal cooldown do not leak audio playback or block 8-second WLED restoration.
-- [ ] Simulator previews for built-in and custom audio; clearly label it as simulated.
-- [ ] Automated tests on both Fire TV and ESP32 and cross-platform parity check extension.
+- [x] Three original procedural horn presets on both platforms, plus Python WAV generator.
+- [x] Goal owner selects Away/Home profile, consistent with WLED eligibility and TV delay. Profiles currently persist per **team abbreviation** rather than per-game (intentional for reuse).
+- [x] Source implemented; mono PCM WAV validation and bounded stream buffers compile and pass tests.
+- [x] Master background audio is OFF after restart on both platforms; volume and per-team kinds persist.
+- [x] Fallback code paths implemented on both platforms. Physical playback behavior unverified.
+- [x] Audio uses an independent worker with stop-on-restore hooks. Stress/physical concurrency testing still needed.
+- [x] Local browser audio mock and hosted simulator update authored. Actual iOS Safari audio output unverified.
+- [x] ESP32 WAV validation, Fire TV WAV validation, and static parity checks pass in CI on feature branch.
 - [ ] Physical CYD speaker/SPI/audio quality and volume tests after hardware arrives.
 - [ ] Fire TV background audio focus and streaming-app coexistence verified separately.
 
 Do not mark these as complete until code, CI and hardware evidence exist.
+
+## v0.4 actual implementation and how to test
+
+**ESP32:** `AudioPlayer.cpp` uses I2S/DAC2 GPIO26 output and a dedicated FreeRTOS audio task. Custom audio is read in small chunks from microSD `/audio/NAME.wav`. The SOUND page supports selecting 3 built-in synthesized horns, CUSTOM WAV or OFF independently for Away/Home. Web setup adds a custom file-name form. Audio master is OFF after every boot; volume persists. Missing/invalid file falls back to built-in Horn. Any goal-generated audio stops when WLED restoration finishes.
+
+**Fire TV:** `GameAudio.java` uses Android AudioTrack and an isolated thread; `AudioProfile.java` validates sound sources and canonical WAV. The new SOUND tab can enable background sounds, adjust volume, preview either team's sound, and import an audio file into app storage. Team settings persist per three-letter abbreviation. Optional audio runs independently of GameDayService's WLED worker, and is stopped during scene restoration or disarming.
+
+**Browser mock:** `simulator/web/index.html` contains standalone Web Audio original horns, volume, mute, user-selected local WAV and both-team demo goals. This is not live NHL-to-real-WLED control.
+
+**Test file generator:** Run `python tools/make_test_wavs.py output`. On ESP32, copy the WAVs into the microSD `/audio/` directory and enter their basename (`HORN1`, etc.) in the local device web interface. On Fire TV, import via the SOUND tab (device document picker required). All audio is original and generated from mathematical waveforms.
+
+**Limitations:** ESP32 touch temporarily stops polling while custom microSD audio streams over VSPI, and restarts after completion; the display remains visible, WLED and NHL are intended to remain active. GPIO26 amplified speaker output must be physically confirmed for a specific CYD revision. Fire TV audio mixing/focus is OS-dependent and hardware-unverified. Uploaded audio is not hosted on a server. Never assume flash/build success proves an audible speaker output.
+
+**Software verification:** [ESP32 firmware and 28 native tests](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382843599); [Fire TV Android unit tests and APK build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636). The physical acceptance checklist remains open.

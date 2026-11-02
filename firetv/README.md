@@ -1,17 +1,17 @@
-# GlowDeck GameDay Fire TV v0.3 — background monitoring test
+# GlowDeck GameDay Fire TV v0.4 — background monitoring test
 
 **A native, remote-controlled Amazon Fire TV / Android TV NHL + WLED test application.** This release introduces an opt-in Android **foreground service** that continues NHL play-by-play polling and controlling local WLED lights while the Fire TV displays YouTube TV, ESPN, Prime Video, or another app. No desktop server and no ESP32 are needed once the APK is installed.
 
-**[Download the Fire TV v0.3 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.3.0-test/GlowDeck-GameDay-FireTV-v0.3.apk)** · [Release page](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.3.0-test) · [Project roadmap](../PROJECT_PLAN.md)
+**[Download the Fire TV v0.4 test APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.4.0-test/GlowDeck-GameDay-FireTV-v0.4.apk)** · [Release page](https://github.com/ggrant111/glowdeck-sports/releases/tag/firetv-v0.4.0-test) · [Project roadmap](../PROJECT_PLAN.md)
 
 ## Install by ADB
 
 1. Enable ADB debugging on Fire TV. Put the Fire TV and WLED on the same reachable trusted network.
-2. Download `GlowDeck-GameDay-FireTV-v0.3.apk` to your computer. On Windows with ADB:
+2. Download `GlowDeck-GameDay-FireTV-v0.4.apk` to your computer. On Windows with ADB:
 
    ```powershell
    adb connect 192.168.1.24
-   adb install -r GlowDeck-GameDay-FireTV-v0.3.apk
+   adb install -r GlowDeck-GameDay-FireTV-v0.4.apk
    adb shell am start -n com.gkowdeck.gameday.firetv/.MainActivity
    ```
 
@@ -50,7 +50,21 @@ The final command **force-stops** the app and service and should be used only fo
 
 Source: `firetv/app/src/main/java/com/gkowdeck/gameday/firetv/GameDayService.java` and `MonitorRules.java`; the Activity is a UI controller, not the background network worker. Run `gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug` in `firetv/`. Source remains under your `ggrant111/glowdeck-sports` repository.
 
-## v0.3 celebration modes
+## v0.4 built-in + custom audio
+
+Choose **SOUND** in the Fire TV app. Audio starts OFF for safe coexistence with streaming apps. Enable sound if you want to hear original synthesized **Stadium Horn**, **Double Horn**, or **Siren**. Use NEXT SOUND per team to select a different source; **OFF** and **CUSTOM WAV** are also choices. Each team's profile is saved independently. Volume is adjustable in 10% steps and PREVIEW works even before arming a game.
+
+To import a user-supplied clip, select **IMPORT WAV** for a team. On Fire TVs with a document picker, choose a WAV file; GlowDeck validates it and stores it in its app-owned folder as `UTA.wav`, `ANA.wav`, etc. Compatible audio: **PCM mono, 16000 Hz, 16-bit, max 10 seconds**, canonical 44-byte WAV header, with a maximum audio payload of 320 KB. Importing a WAV automatically selects the CUSTOM WAV profile for that team.
+
+Some Fire TVs don't have a document picker. For ADB-assisted testing on compatible devices, use `adb push HORN1.wav /sdcard/Android/data/com.gkowdeck.gameday.firetv/files/gameday-audio/UTA.wav` after ensuring the app folder exists. On newer Fire OS builds, direct access to Android/data may be restricted; use a compatible document picker or app-local import workflow if the copy is refused.
+
+For original test WAVs, run `python tools/make_test_wavs.py output` from the repository root. The provided Python tool produces three original, license-safe sample clips.
+
+**Audio doesn't interrupt WLED restoration.** Goal audio starts on the same event after the selected TV delay as lights. If playback fails, WLED still restores after eight seconds. Custom missing WAV falls back to built-in Horn. In YouTube TV and other video apps, Fire OS may duck, mix or mute audio; foreground-service survival doesn't prove audio-focus compatibility. Test at low volume. No background sound is enabled automatically after install.
+
+**v0.4 software evidence:** [Android tests + debug APK build](https://github.com/ggrant111/glowdeck-sports/actions/runs/41382441636); Fire TV speaker, focus and actual custom file import remain **hardware unverified**.
+
+## v0.4 celebration modes
 
 - **AWAY:** celebrate only away goals in the away team's color.
 - **HOME:** celebrate only home goals in the home team's color.

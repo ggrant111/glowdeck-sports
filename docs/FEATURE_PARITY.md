@@ -59,6 +59,18 @@ This file must be reviewed with **every new feature** and **every behavior chang
 - [ ] Manual iPhone Safari touch check still needed.
 - [ ] Real ESP32 NHL TLS behavior, memory, touch alignment, Wi-Fi, and WLED state restoration.
 
-## v0.4 Audio parity requirement (DESIGN, NOT IMPLEMENTED)
+## v0.4 Audio parity implementation (SOURCE IMPLEMENTED, HARDWARE UNVERIFIED)
 
-See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must ship intentionally on both **ESP32** and **Fire TV**, with a browser mock when applicable. Required behavior: built-in original sound library **and** user-supplied custom WAV clips; independent per-team/event selection; safe default mute, volume and test/preview; same eligible NHL goal identity and TV delay as lighting; audio failure must not interrupt WLED restoration; no hardware auto playback without explicit enabling. Hardware-dependent audio outputs differ (GPIO26 via speaker amplifier on CYD; Android audio with OS focus on Fire TV). **CI audio-parity checks have not been written yet.**
+See [AUDIO_V04.md](AUDIO_V04.md). All user-facing GameDay sound features must ship intentionally on both **ESP32** and **Fire TV**, with a browser mock when applicable. Required behavior: built-in original sound library **and** user-supplied custom WAV clips; independent per-team/event selection; safe default mute, volume and test/preview; same eligible NHL goal identity and TV delay as lighting; audio failure must not interrupt WLED restoration; no hardware auto playback without explicit enabling. Hardware-dependent audio outputs differ (GPIO26 via speaker amplifier on CYD; Android audio with OS focus on Fire TV). **CI audio-parity static checks are now implemented** in `scripts/check-parity.py` and exercised by the GitHub parity workflow.
+
+### Audio parity milestones
+
+- [x] ESP32 v0.4 SOUND screen with built-in Horn/Double/Siren, Custom WAV, off, volume and standalone preview.
+- [x] Fire TV v0.4 SOUND tab with same source choices, imported WAV, volume and team-specific preview.
+- [x] Local browser mock v0.4 SOUND tab and demo-goal sound playback.
+- [x] 16kHz/mono/16-bit/10-second canonical WAV validation and original generated horn samples.
+- [x] Safe background audio default OFF and WLED restore independent of audio success.
+- [x] New audio source parity check on v0.4 branch passed.
+- [ ] Real ESP32 speaker and SD tests, Fire TV audio focus while YouTube TV runs, and iPhone Safari audio preview.
+- [ ] Real multiple-goal sustained soak with optional sound and WLED restore timing verified on hardware.
+- [ ] Extend audio events beyond NHL goals (power play, intermission, wins).
