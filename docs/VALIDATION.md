@@ -51,3 +51,5 @@
 - PASS: [GitHub Actions build 41373942957](https://github.com/ggrant111/glowdeck-sports/actions/runs/41373942957) — Android JVM unit tests, Fire TV debug APK assembly, SHA256 file creation and release publishing.
 - [Download v0.2 APK](https://github.com/ggrant111/glowdeck-sports/releases/download/firetv-v0.2.0-test/GlowDeck-GameDay-FireTV-v0.2.apk); source: `firetv/app/src/main/java/com/gkowdeck/gameday/firetv/GameDayService.java`.
 - NOT RUN: Real Fire TV background survival with YouTube TV/Prime/ESPN; foreground notification lifecycle and STOP action; real NHL goal and WLED state restoration; OS kill/network-loss tests. This feature is not hardware verified.
+
+- USER HARDWARE CHECK (2026-11-01): Fire TV displayed ARMED after switching to YouTube TV. AirAPK `dumpsys activity services` showed `GameDayService`, `isForeground=true`, and `foregroundId=1227`, roughly 7m41s elapsed. The real WLED eight-second manual test worked. The only current NHL game was in intermission. NHL polling continuity, automatic goal reaction and exact scene restoration still require separate observation.
