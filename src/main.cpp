@@ -14,6 +14,7 @@
 
 namespace {
 constexpr uint32_t NHL_INTERVAL_MS = 60000;
+constexpr uint32_t PBP_INTERVAL_MS = 25000;
 constexpr uint32_t UI_INTERVAL_MS = 3000;
 constexpr int TOUCH_CS = 33, TOUCH_IRQ = 36;
 constexpr int TOUCH_CLK = 25, TOUCH_MISO = 39, TOUCH_MOSI = 32;
@@ -49,7 +50,8 @@ WledLightPort lightPort;
 gd::ReactionController reactions(goals, lightPort);
 WebServer web(80);
 gd::Scoreboard scores;
-uint32_t lastNhl = 0;
+uint32_t lastNhl = 0, lastPbp = 0;
+bool pbpEverPolled = false;
 uint32_t lastUi = 0;
 bool nhlEverPolled = false;
 bool servicesStarted = false;
@@ -67,7 +69,9 @@ void redraw() {
     uiState.ip = WiFi.localIP().toString();
     uiState.goalArmed = goals.armed();
     uiState.goalDelay = goals.delay();
-    uiState.favoriteHome = goals.favoriteHome();
+    uiState.celebrationMode = goals.mode();
+    uiState.goalPaused = goals.paused();
+    uiState.goalBaselineReady = goals.baselined();
     uiState.goalQueued = goals.pending();
     uiState.goalActive = reactions.active();
     uiState.restorePending = wled.autoRestorePending();
@@ -78,14 +82,15 @@ void saveGameSettings() {
     Preferences p;
     p.begin("gd-game", false);
     p.putUChar("delay", goals.delay());
-    p.putBool("favHome", goals.favoriteHome());
+    if (uiState.selectedGameId)
+        p.putUChar((String("m")+uiState.selectedGameId).c_str(), (uint8_t)goals.mode());
     p.end();
 }
 void loadGameSettings() {
     Preferences p;
     p.begin("gd-game", true);
     goals.setDelay(p.getUChar("delay", 0));
-    goals.setFavoriteHome(p.getBool("favHome", true));
+    goals.setMode(gd::CelebrationMode::Away);
     p.end();
     // Never persist armed=true. Require a live feed and deliberate arm each boot.
 }
@@ -100,20 +105,26 @@ bool clearAutoBeforeManual() {
     return false;
 }
 void selectGame(uint32_t id) {
+    if (goals.armed()) { banner("Disarm before changing game"); return; }
     if (!clearAutoBeforeManual()) return;
     uiState.selectedGameId = id;
-    goals.selectGame(id); // disarms; sets a new fresh baseline on next arm
+    goals.selectGame(id);
+    Preferences p; p.begin("gd-game",true);
+    goals.setMode(gd::validatedMode(p.getUChar((String("m")+id).c_str(), 0)));
+    p.end();
     const gd::Game *g = selectedGame();
     if (g) banner(String("Selected ") + g->away + " @ " + g->home);
     else banner("Choose a live game");
 }
-void setFavorite(bool home) {
+void setCelebrations(gd::CelebrationMode mode) {
+    if (goals.armed()) { banner("Disarm before changing team mode"); return; }
     if (!clearAutoBeforeManual()) return;
-    goals.setFavoriteHome(home);
+    goals.setMode(mode);
     saveGameSettings();
-    banner(home ? "Favorite: HOME" : "Favorite: AWAY");
+    banner(String("Celebrate: ") + gd::celebrationName(goals.mode()));
 }
 void setGoalDelay(int delta) {
+    if (goals.armed()) { banner("Disarm before changing delay"); return; }
     if (!clearAutoBeforeManual()) return;
     int next = (int)goals.delay() + delta;
     if (next < 0) next = 0;
@@ -140,7 +151,8 @@ void toggleArm() {
     }
     if (!goals.arm(g, millis())) { banner("Choose a LIVE game first"); return; }
     reactions.setTeamColors(gd::teamColor(g->away), gd::teamColor(g->home));
-    banner("Goal lights ARMED");
+    pbpEverPolled=false;
+    banner("Goal monitor: fetching play baseline");
 }
 
 String htmlEscape(const String &s) {
@@ -160,7 +172,7 @@ String htmlEscape(const String &s) {
 void redirectHome() { web.sendHeader("Location", "/", true); web.send(303, "text/plain", "Redirecting"); }
 void webHome() {
     String page = R"HTML(<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>GlowDeck GameDay</title><style>
-body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.2</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
+body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:620px;padding:24px}h1{color:#57bdb5}section{background:#182a30;border-radius:16px;padding:18px;margin:15px 0}input,button{border:0;border-radius:8px;padding:12px;font-size:15px;margin:4px}button{background:#31837a;color:white;cursor:pointer}input{max-width:170px}small{color:#a3b9bc}form{display:inline-block}</style></head><body><h1>GlowDeck GameDay v0.3</h1><p>Local setup for the ESP32 touchscreen sports controller.</p>)HTML";
     page += "<section><h2>Status</h2><p>Wi-Fi: " + htmlEscape(WiFi.SSID()) + "<br>NHL: ";
     page += uiState.nhlConnected ? "connected" : "unavailable";
     page += "<br>Games today: " + String(scores.count) + "</p><form method='post' action='/refresh'><button>Refresh NHL</button></form></section>";
@@ -179,16 +191,17 @@ body{background:#0a1418;color:#eaf5f5;font:16px system-ui;margin:auto;max-width:
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='away'><button>Apply away team</button></form>";
         page += "<form method='post' action='/apply'><input type='hidden' name='side' value='home'><button>Apply home team</button></form>";
     } else page += "<p>No game selected.</p>";
-    page += "</section><section><h2>GameDay goal reactions</h2><p>Default OFF at every boot. Scoreboard-delta prototype; no authoritative play IDs.</p>";
+    page += "</section><section><h2>GameDay goal reactions</h2><p>Default OFF at every boot. NHL play-by-play goal event IDs; first response is baseline only.</p>";
     page += "<p>Goal lights: <strong>" + String(goals.armed() ? "ARMED" : "OFF") + "</strong> | " +
-      "Favorite: " + String(goals.favoriteHome() ? "HOME" : "AWAY") +
+      "Celebrate: " + String(gd::celebrationName(goals.mode())) +
       " | TV delay: " + String(goals.delay()) + "s</p>";
     page += "<p>Selected WLED: " + String(uiState.selectedLed >= 0 && (size_t)uiState.selectedLed < wled.size()
       ? htmlEscape(wled.at(uiState.selectedLed).name) : "none") + "</p>";
     if (wled.autoRestorePending()) page += "<p>Saved scene recovery pending; no new goal scenes allowed.</p>";
     page += "<form method='post' action='/gameday'><button name='action' value='toggle'>ARM / DISARM</button></form>";
-    page += "<form method='post' action='/gameday'><button name='action' value='away'>Favorite away</button></form>";
-    page += "<form method='post' action='/gameday'><button name='action' value='home'>Favorite home</button></form>";
+    page += "<form method='post' action='/gameday'><button name='action' value='away'>Celebrate away</button></form>";
+    page += "<form method='post' action='/gameday'><button name='action' value='home'>Celebrate home</button></form>";
+    page += "<form method='post' action='/gameday'><button name='action' value='both'>Celebrate BOTH</button></form>";
     page += "<form method='post' action='/gameday'><button name='action' value='minus'>Delay -15s</button></form>";
     page += "<form method='post' action='/gameday'><button name='action' value='plus'>Delay +15s</button></form>";
     page += "<h3>Select game</h3>";
@@ -210,7 +223,7 @@ void refreshNhl() {
     uiState.nhlConnected = ok;
     uiState.nhlError = error;
     if (!ok) {
-        goals.disarm(); // fail closed; reconnect requires deliberate rearm
+        goals.pause(); // fail closed; rebaseline upon feed recovery
         banner(error); redraw(); return;
     }
     const gd::Game *old = selectedGame();
@@ -223,11 +236,28 @@ void refreshNhl() {
         gd::GoalChange change = gd::detectGoalChange(previous, *tracked);
         if (change.changed) banner(String("SCORE! Away +") + change.awayAdded + " Home +" + change.homeAdded);
     }
-    goals.observe(tracked, millis());
+    goals.observeGame(tracked);
     if (!tracked) { uiState.selectedGameId = 0; goals.selectGame(0); }
     if (uiState.gamePage * 4 >= scores.count) uiState.gamePage = 0;
     Serial.printf("NHL: %u games for %s\n", scores.count, scores.date);
     redraw();
+}
+void refreshPlayByPlay() {
+    if (!goals.armed() || WiFi.status()!=WL_CONNECTED) return;
+    gd::GoalFeed sample; String error;
+    const bool wasPaused=goals.paused();
+    const bool ok=nhl.pollGoals(goals.gameId(),sample,error);
+    lastPbp=millis(); pbpEverPolled=true;
+    if (!ok) {
+        goals.pause();
+        banner(String("NHL PBP: ")+error);
+        return;
+    }
+    goals.observeFeed(sample,millis());
+    if (wasPaused && goals.baselined()) banner("NHL play baseline ready");
+    Serial.printf("PBP game=%lu latest=%lu goals=%u %s\n",
+        (unsigned long)sample.gameId,(unsigned long)sample.latestEventId,
+        sample.count,goals.paused()?"PAUSED":"ARMED");
 }
 void applyTeam(bool home) {
     if (!clearAutoBeforeManual()) return;
@@ -266,8 +296,9 @@ void doAction(const UiAction &a) {
       }
       case ActionType::RefreshNhl: refreshNhl(); break;
       case ActionType::ToggleArm: toggleArm(); break;
-      case ActionType::FavoriteAway: setFavorite(false); break;
-      case ActionType::FavoriteHome: setFavorite(true); break;
+      case ActionType::CelebrateAway: setCelebrations(gd::CelebrationMode::Away); break;
+      case ActionType::CelebrateHome: setCelebrations(gd::CelebrationMode::Home); break;
+      case ActionType::CelebrateBoth: setCelebrations(gd::CelebrationMode::Both); break;
       case ActionType::DelayMinus: setGoalDelay(-15); break;
       case ActionType::DelayPlus: setGoalDelay(15); break;
       default: break;
@@ -300,8 +331,9 @@ void setupWeb() {
     web.on("/gameday", HTTP_POST, [] {
         String a = web.arg("action");
         if (a=="toggle") toggleArm();
-        else if (a=="away") setFavorite(false);
-        else if (a=="home") setFavorite(true);
+        else if (a=="away") setCelebrations(gd::CelebrationMode::Away);
+        else if (a=="home") setCelebrations(gd::CelebrationMode::Home);
+        else if (a=="both") setCelebrations(gd::CelebrationMode::Both);
         else if (a=="minus") setGoalDelay(-15);
         else if (a=="plus") setGoalDelay(15);
         redirectHome();
@@ -370,6 +402,7 @@ void loop() {
         }
         web.handleClient();
         if (!nhlEverPolled || millis() - lastNhl >= NHL_INTERVAL_MS) refreshNhl();
+        if (goals.armed() && (!pbpEverPolled || millis()-lastPbp>=PBP_INTERVAL_MS)) refreshPlayByPlay();
     }
     pollTouch();
     const bool online = WiFi.status() == WL_CONNECTED;
