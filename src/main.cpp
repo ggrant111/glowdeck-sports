@@ -1,4 +1,8 @@
 #include <Arduino.h>
+#include <rom/ets_sys.h>
+#include <esp_system.h>
+__attribute__((constructor(101))) static void earlyBootMarker(){ets_printf("\nGD-BOOT: application constructors reached\n");}
+void initVariant(){ets_printf("GD-BOOT: Arduino initialized\n");}
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
@@ -772,9 +776,10 @@ void pollTouch() {
 }
 
 void setup() {
+    ets_printf("GD-BOOT: setup entered reset=%d\n",int(esp_reset_reason()));
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.8.1 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.8.2 diagnostic - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.following=&following;
     uiState.scoreboard = &scores;
     uiState.leds = &wled;

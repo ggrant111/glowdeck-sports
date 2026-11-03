@@ -1,3 +1,7 @@
+## v0.8.2 startup diagnostics
+
+This diagnostic build adds `GD-BOOT` markers before global constructors, after Arduino initialization, and on entry to setup. It does not claim to fix an unidentified boot reset. The `boot_probe` environment builds a minimal serial heartbeat without display, Wi-Fi, NHL, lighting or preferences. A stable `GD-PROBE: alive` heartbeat isolates the problem to normal application startup; ROM-only resets with this small image require investigation of flashing, boot configuration or hardware. Both uploads retain NVS settings. Re-upload `cyd_ili9342` after testing to restore GlowDeck functionality.
+
 ## ESP32 v0.8.1 — play-by-play memory fix
 
 Fixes `Reconnecting: PBP JSON: NoMemory` after Start all. The ESP32 now processes each play separately instead of retaining the entire game history. Existing following, display and Wi-Fi settings are retained. Android already uses a different parser and does not need this firmware-only patch.

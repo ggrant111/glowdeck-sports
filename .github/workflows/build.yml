@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        board: [cyd, cyd_ili9342, cyd_st7789]
+        board: [cyd, cyd_ili9342, cyd_st7789, boot_probe]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,7 +30,7 @@ jobs:
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.8.1-${{ matrix.board }}-firmware
+          name: GlowDeck-GameDay-v0.8.2-${{ matrix.board }}-firmware
           path: |
             .pio/build/${{ matrix.board }}/firmware.bin
             .pio/build/${{ matrix.board }}/firmware.elf
