@@ -774,7 +774,7 @@ void pollTouch() {
 void setup() {
     Serial.begin(115200);
     delay(250);
-    Serial.printf("GlowDeck ESP32 v0.8.0 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
+    Serial.printf("GlowDeck ESP32 v0.8.1 - loop stack %u bytes\n",unsigned(getArduinoLoopTaskStackSize()));
     uiState.following=&following;
     uiState.scoreboard = &scores;
     uiState.leds = &wled;

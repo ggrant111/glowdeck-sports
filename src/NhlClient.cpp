@@ -1,3 +1,4 @@
+#include "PbpStream.h"
 #include "NhlClient.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
@@ -138,21 +139,47 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error, gd:
     filter["plays"][0]["typeDescKey"]=true;
     filter["plays"][0]["details"]["eventOwnerTeamId"]=true;
     if (filter.overflowed()) { error="PBP filter overflow"; http.end(); return false; }
-    DynamicJsonDocument doc(72*1024);
-    const DeserializationError parse=deserializeJson(doc,http.getStream(),
-        DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(14));
-    http.end();
-    if(parse) { error=String("PBP JSON: ")+parse.c_str(); return false; }
+    static gd::GoalFeed sample;
+    sample.count=0;sample.extraCount=0;sample.latestEventId=0;sample.valid=false;
+    int previousAdvantage=-1;
+    DynamicJsonDocument doc(4096);
+    auto consumePlay=[&](JsonObject play)->bool{
+        const uint32_t id=play["eventId"] | 0UL;
+        if(!id) return true;
+        if(id>sample.latestEventId)sample.latestEventId=id;
+        const char *type=play["typeDescKey"] | "";
+        gd::ExtraPlay cue;cue.id=id;bool found=false;
+        if(strcmp(type,"period-start")==0){cue.kind=gd::periodStart(play["periodDescriptor"]["periodType"]|"");found=true;}
+        else if(strcmp(type,"period-end")==0){cue.kind=gd::SportEvent::PeriodEnd;found=true;}
+        else if(strcmp(type,"game-end")==0){cue.kind=gd::SportEvent::GameEnd;found=true;}
+        int advantage=gd::advantage(play["situationCode"]|"");
+        // A burst at the first play confirming an advantage, not on every penalty.
+        if(!found && advantage>0 && previousAdvantage>=0 && advantage!=previousAdvantage){
+            cue.kind=gd::SportEvent::PowerPlay;cue.ownerId=advantage==2?2:1;found=true;
+        }
+        if(advantage>=0)previousAdvantage=advantage;
+        if(found){if(sample.extraCount>=64){error="Too many event cues";return false;}sample.extra[sample.extraCount++]=cue;}
+        if(strcmp(type,"goal")!=0) return true;
+        if(strcmp(play["periodDescriptor"]["periodType"]|"","SO")==0)return true;
+        if(sample.count>=gd::MAX_GOALS_PER_GAME) {
+            error="Too many goals in play feed"; return false;
+        }
+        gd::GoalPlay &goal=sample.goals[sample.count++];
+        goal.id=id;
+        goal.ownerId=play["details"]["eventOwnerTeamId"] | 0UL;
+        return true;
+    };
+    bool parsed=readPbp(http.getStream(),doc,filter,consumePlay,error);
+    http.end();if(!parsed)return false;
     const char *feedState=doc["gameState"]|"";
     const char *scheduleState=doc["gameScheduleState"]|"";
     if(!strcmp(scheduleState,"PPD")||!strcmp(scheduleState,"CNCL"))feedState=scheduleState;
     const bool pre=!strcmp(feedState,"FUT")||!strcmp(feedState,"PRE")||!strcmp(feedState,"PPD")||!strcmp(feedState,"CNCL");
-    if((!pre && !doc["plays"].is<JsonArray>()) || !doc["awayTeam"]["id"].is<int>() ||
+    if((!pre && !doc["playsSeen"].as<bool>()) || !doc["awayTeam"]["id"].is<int>() ||
        !doc["homeTeam"]["id"].is<int>()) {
         error="PBP missing required fields"; return false;
     }
-    static gd::GoalFeed sample;
-    sample.count=0;sample.extraCount=0;sample.latestEventId=0;sample.valid=false;
+
     sample.gameId=doc["id"].as<uint32_t>();
     sample.awayId=doc["awayTeam"]["id"].as<uint32_t>();
     sample.homeId=doc["homeTeam"]["id"].as<uint32_t>();
@@ -173,32 +200,7 @@ bool NhlClient::pollGoals(uint32_t gameId, gd::GoalFeed &out, String &error, gd:
     const char *state=feedState;
     copy(sample.state,sizeof(sample.state),state);
     sample.final=strcmp(state,"OFF")==0||strcmp(state,"FINAL")==0;
-    int previousAdvantage=-1;
-    for(JsonObject play: doc["plays"].as<JsonArray>()) {
-        const uint32_t id=play["eventId"] | 0UL;
-        if(!id) continue;
-        if(id>sample.latestEventId)sample.latestEventId=id;
-        const char *type=play["typeDescKey"] | "";
-        gd::ExtraPlay cue;cue.id=id;bool found=false;
-        if(strcmp(type,"period-start")==0){cue.kind=gd::periodStart(play["periodDescriptor"]["periodType"]|"");found=true;}
-        else if(strcmp(type,"period-end")==0){cue.kind=gd::SportEvent::PeriodEnd;found=true;}
-        else if(strcmp(type,"game-end")==0){cue.kind=gd::SportEvent::GameEnd;found=true;}
-        int advantage=gd::advantage(play["situationCode"]|"");
-        // A burst at the first play confirming an advantage, not on every penalty.
-        if(!found && advantage>0 && previousAdvantage>=0 && advantage!=previousAdvantage){
-            cue.kind=gd::SportEvent::PowerPlay;cue.ownerId=advantage==2?sample.homeId:sample.awayId;found=true;
-        }
-        if(advantage>=0)previousAdvantage=advantage;
-        if(found){if(sample.extraCount>=64){error="Too many event cues";return false;}sample.extra[sample.extraCount++]=cue;}
-        if(strcmp(type,"goal")!=0) continue;
-        if(strcmp(play["periodDescriptor"]["periodType"]|"","SO")==0)continue;
-        if(sample.count>=gd::MAX_GOALS_PER_GAME) {
-            error="Too many goals in play feed"; return false;
-        }
-        gd::GoalPlay &goal=sample.goals[sample.count++];
-        goal.id=id;
-        goal.ownerId=play["details"]["eventOwnerTeamId"] | 0UL;
-    }
+    for(unsigned i=0;i<sample.extraCount;++i)if(sample.extra[i].kind==gd::SportEvent::PowerPlay)sample.extra[i].ownerId=sample.extra[i].ownerId==2?sample.homeId:sample.awayId;
     sample.valid=true;
     out=sample;
     return true;

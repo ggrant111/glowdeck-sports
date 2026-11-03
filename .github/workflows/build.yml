@@ -25,10 +25,12 @@ jobs:
         run: c++ -std=c++17 -Iinclude scripts/check-clock.cpp -o /tmp/check-clock && /tmp/check-clock
       - name: Compile CYD firmware
         run: pio run -e ${{ matrix.board }}
+      - name: Check bounded play-by-play parser
+        run: c++ -std=c++17 -Iinclude -I.pio/libdeps/${{ matrix.board }}/ArduinoJson/src scripts/check-pbp-stream.cpp -o /tmp/check-pbp && /tmp/check-pbp
       - name: Upload flashable image
         uses: actions/upload-artifact@v4
         with:
-          name: GlowDeck-GameDay-v0.8.0-${{ matrix.board }}-firmware
+          name: GlowDeck-GameDay-v0.8.1-${{ matrix.board }}-firmware
           path: |
             .pio/build/${{ matrix.board }}/firmware.bin
             .pio/build/${{ matrix.board }}/firmware.elf

@@ -1,3 +1,7 @@
+## ESP32 v0.8.1 — play-by-play memory fix
+
+Fixes `Reconnecting: PBP JSON: NoMemory` after Start all. The ESP32 now processes each play separately instead of retaining the entire game history. Existing following, display and Wi-Fi settings are retained. Android already uses a different parser and does not need this firmware-only patch.
+
 ## v0.8 — game display
 
 Both devices boot into a display cycling today’s upcoming/live games about every 10 seconds. Tap the top-left gear (Fire TV: select it with the remote) for controls. ESP32: SETUP → SHOW returns to display; Fire TV: DISPLAY tab. Scores and clock are NHL snapshots refreshed about every 60 seconds, not a locally running countdown. Logos are bundled for offline use.
