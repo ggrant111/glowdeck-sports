@@ -1,5 +1,11 @@
 #pragma once
 #include <ArduinoJson.h>
+template<class StreamType> struct PbpPrefixStream {
+    StreamType &source;int prefix;
+    PbpPrefixStream(StreamType &s,int first):source(s),prefix(first){}
+    int read(){if(prefix>=0){int c=prefix;prefix=-1;return c;}char c;return source.readBytes(&c,1)==1?(unsigned char)c:-1;}
+    size_t readBytes(char *buffer,size_t length){size_t n=0;for(;n<length;++n){int c=read();if(c<0)break;buffer[n]=c;}return n;}
+};
 // Consume one JSON value at a time. The NHL history can grow without growing RAM.
 template<class StreamType,class PlayHandler>
 bool readPbp(StreamType &stream,JsonDocument &metadata,JsonDocument &filter,PlayHandler play,String &error){
@@ -18,11 +24,7 @@ bool readPbp(StreamType &stream,JsonDocument &metadata,JsonDocument &filter,Play
             int first=next();
             if(first!=']')for(;;){
                 if(first!='{')return fail("PBP invalid play object");
-                struct PrefixStream {
-                    StreamType &source;bool prefix=true;
-                    int read(){if(prefix){prefix=false;return '{';}char c;return source.readBytes(&c,1)==1?(unsigned char)c:-1;}
-                    size_t readBytes(char *buffer,size_t length){size_t n=0;for(;n<length;++n){int c=read();if(c<0)break;buffer[n]=c;}return n;}
-                } input{stream};
+                PbpPrefixStream<StreamType> input(stream,'{');
                 parsed=deserializeJson(value,input,DeserializationOption::Filter(filter["plays"][0].as<JsonVariantConst>()),DeserializationOption::NestingLimit(14));
                 if(parsed){error=String("PBP play JSON: ")+parsed.c_str();return false;}
                 if(!play(value.as<JsonObject>()))return false;
@@ -40,10 +42,7 @@ bool readPbp(StreamType &stream,JsonDocument &metadata,JsonDocument &filter,Play
                 }token[length]=0;
                 parsed=deserializeJson(value,token,DeserializationOption::Filter(filter[name].as<JsonVariantConst>()));
             }else{
-                struct ValueStream {StreamType &source;int prefix;
-                    int read(){if(prefix>=0){int c=prefix;prefix=-1;return c;}char c;return source.readBytes(&c,1)==1?(unsigned char)c:-1;}
-                    size_t readBytes(char *p,size_t n){size_t i=0;for(;i<n;++i){int c=read();if(c<0)break;p[i]=c;}return i;}
-                } input{stream,first};
+                PbpPrefixStream<StreamType> input(stream,first);
                 parsed=deserializeJson(value,input,DeserializationOption::Filter(filter[name].as<JsonVariantConst>()),DeserializationOption::NestingLimit(14));
             }
             if(parsed){error=String("PBP field JSON: ")+parsed.c_str();return false;}
